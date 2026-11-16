@@ -359,6 +359,539 @@ export function buildApp() {
     return { subscription };
   });
 
+  // STUDENT CRUD
+  app.post('/api/students', async (request, reply) => {
+    const user = await requireUser(request, reply); if (!user) return;
+    if (!user.centerId || !(await authorize(user.id, 'students.create', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
+    const input = z.object({
+      id: z.coerce.number().int().positive().optional(),
+      name: z.string().trim().min(2).max(160),
+      phone: z.string().trim().max(40).optional(),
+      parent: z.string().trim().max(40).optional(),
+      branchId: z.string().optional(),
+      groupIds: z.array(z.coerce.number().int().positive()).default([]),
+    }).parse(request.body);
+
+    const studentId = input.id ?? ((await prisma.student.findFirst({ orderBy: { id: 'desc' }, select: { id: true } }))?.id || 1000) + 1;
+    const branch = input.branchId ? await prisma.branch.findFirst({ where: { id: input.branchId, centerId: user.centerId } }) : await prisma.branch.findFirst({ where: { centerId: user.centerId } });
+
+    const student = await prisma.$transaction(async (tx) => {
+      const created = await tx.student.create({
+        data: {
+          id: studentId,
+          centerId: user.centerId!,
+          branchId: branch?.id ?? null,
+          name: input.name,
+          phone: input.phone || null,
+          parent: input.parent || null,
+        },
+      });
+      for (const groupId of input.groupIds) {
+        const group = await tx.group.findFirst({ where: { id: groupId, centerId: user.centerId! } });
+        if (group) {
+          await tx.enrollment.create({ data: { studentId, groupId } });
+          const currentMonth = new Date().toISOString().slice(0, 7);
+          await tx.subscription.upsert({
+            where: { studentId_groupId_month: { studentId, groupId, month: currentMonth } },
+            update: {},
+            create: { studentId, groupId, month: currentMonth, amount: group.price, discount: 0, dueOn: `${currentMonth}-10`, status: 'pending' },
+          });
+        }
+      }
+      return created;
+    });
+
+    await prisma.auditLog.create({
+      data: { centerId: user.centerId, userId: user.id, action: 'students.create', entity: 'Student', entityId: String(student.id), metadata: JSON.stringify({ name: student.name, groupIds: input.groupIds }) },
+    });
+    return { student };
+  });
+
+  app.put('/api/students/:id', async (request, reply) => {
+    const user = await requireUser(request, reply); if (!user) return;
+    if (!user.centerId || !(await authorize(user.id, 'students.update', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
+    const params = z.object({ id: z.coerce.number().int().positive() }).parse(request.params);
+    const input = z.object({
+      name: z.string().trim().min(2).max(160).optional(),
+      phone: z.string().trim().max(40).optional(),
+      parent: z.string().trim().max(40).optional(),
+      branchId: z.string().optional(),
+      groupIds: z.array(z.coerce.number().int().positive()).optional(),
+    }).parse(request.body);
+
+    const existing = await prisma.student.findFirst({ where: { id: params.id, centerId: user.centerId } });
+    if (!existing) return reply.code(404).send({ error: 'STUDENT_NOT_FOUND' });
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const student = await tx.student.update({
+        where: { id: params.id },
+        data: {
+          name: input.name ?? existing.name,
+          phone: input.phone !== undefined ? input.phone || null : existing.phone,
+          parent: input.parent !== undefined ? input.parent || null : existing.parent,
+          branchId: input.branchId !== undefined ? input.branchId || null : existing.branchId,
+        },
+      });
+      if (input.groupIds) {
+        await tx.enrollment.deleteMany({ where: { studentId: params.id } });
+        for (const groupId of input.groupIds) {
+          const group = await tx.group.findFirst({ where: { id: groupId, centerId: user.centerId! } });
+          if (group) {
+            await tx.enrollment.create({ data: { studentId: params.id, groupId } });
+          }
+        }
+      }
+      return student;
+    });
+
+    await prisma.auditLog.create({
+      data: { centerId: user.centerId, userId: user.id, action: 'students.update', entity: 'Student', entityId: String(params.id) },
+    });
+    return { student: updated };
+  });
+
+  app.delete('/api/students/:id', async (request, reply) => {
+    const user = await requireUser(request, reply); if (!user) return;
+    if (!user.centerId || !(await authorize(user.id, 'students.delete', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
+    const params = z.object({ id: z.coerce.number().int().positive() }).parse(request.params);
+    const existing = await prisma.student.findFirst({ where: { id: params.id, centerId: user.centerId } });
+    if (!existing) return reply.code(404).send({ error: 'STUDENT_NOT_FOUND' });
+
+    await prisma.$transaction(async (tx) => {
+      await tx.enrollment.deleteMany({ where: { studentId: params.id } });
+      await tx.attendance.deleteMany({ where: { studentId: params.id } });
+      await tx.subscription.deleteMany({ where: { studentId: params.id } });
+      await tx.payment.deleteMany({ where: { studentId: params.id } });
+      await tx.studentGuardian.deleteMany({ where: { studentId: params.id } });
+      await tx.student.delete({ where: { id: params.id } });
+    });
+
+    await prisma.auditLog.create({
+      data: { centerId: user.centerId, userId: user.id, action: 'students.delete', entity: 'Student', entityId: String(params.id) },
+    });
+    return { ok: true };
+  });
+
+  app.get('/api/students/:id', async (request, reply) => {
+    const user = await requireUser(request, reply); if (!user) return;
+    if (!user.centerId || !(await authorize(user.id, 'students.view', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
+    const params = z.object({ id: z.coerce.number().int().positive() }).parse(request.params);
+    const student = await prisma.student.findFirst({
+      where: { id: params.id, centerId: user.centerId },
+      include: {
+        enrollments: { include: { group: { include: { teacher: true, course: true } } } },
+        attendance: { orderBy: { date: 'desc' }, take: 30 },
+        subscriptions: { orderBy: { month: 'desc' }, take: 12 },
+        guardianLinks: { include: { guardian: true } },
+      },
+    });
+    if (!student) return reply.code(404).send({ error: 'STUDENT_NOT_FOUND' });
+    return { student };
+  });
+
+  // TEACHER CRUD
+  app.post('/api/teachers', async (request, reply) => {
+    const user = await requireUser(request, reply); if (!user) return;
+    if (!user.centerId || !(await authorize(user.id, 'teachers.create', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
+    const input = z.object({
+      id: z.coerce.number().int().positive().optional(),
+      name: z.string().trim().min(2).max(160),
+      subject: z.string().trim().min(2).max(120),
+      phone: z.string().trim().max(40).optional(),
+      branchId: z.string().optional(),
+      email: z.string().email().optional(),
+      password: z.string().min(8).optional(),
+    }).parse(request.body);
+
+    const teacherId = input.id ?? ((await prisma.teacher.findFirst({ orderBy: { id: 'desc' }, select: { id: true } }))?.id || 100) + 1;
+    const branch = input.branchId ? await prisma.branch.findFirst({ where: { id: input.branchId, centerId: user.centerId } }) : await prisma.branch.findFirst({ where: { centerId: user.centerId } });
+
+    let userId: string | null = null;
+    if (input.email && input.password) {
+      const email = input.email.toLowerCase();
+      const existingUser = await prisma.user.findUnique({ where: { email } });
+      if (existingUser) return reply.code(422).send({ error: 'EMAIL_ALREADY_EXISTS' });
+      const passwordHash = await bcrypt.hash(input.password, 12);
+      const createdUser = await prisma.user.create({
+        data: {
+          email,
+          passwordHash,
+          name: input.name,
+          role: 'TEACHER',
+          centerId: user.centerId,
+          branchId: branch?.id ?? null,
+        },
+      });
+      await prisma.centerMembership.create({ data: { userId: createdUser.id, centerId: user.centerId, role: 'TEACHER' } });
+      userId = createdUser.id;
+    }
+
+    const teacher = await prisma.teacher.create({
+      data: {
+        id: teacherId,
+        centerId: user.centerId,
+        branchId: branch?.id ?? null,
+        userId,
+        name: input.name,
+        subject: input.subject,
+        phone: input.phone || null,
+      },
+    });
+
+    await prisma.auditLog.create({
+      data: { centerId: user.centerId, userId: user.id, action: 'teachers.create', entity: 'Teacher', entityId: String(teacher.id) },
+    });
+    return { teacher };
+  });
+
+  app.put('/api/teachers/:id', async (request, reply) => {
+    const user = await requireUser(request, reply); if (!user) return;
+    if (!user.centerId || !(await authorize(user.id, 'teachers.update', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
+    const params = z.object({ id: z.coerce.number().int().positive() }).parse(request.params);
+    const input = z.object({
+      name: z.string().trim().min(2).max(160).optional(),
+      subject: z.string().trim().min(2).max(120).optional(),
+      phone: z.string().trim().max(40).optional(),
+      branchId: z.string().optional(),
+    }).parse(request.body);
+
+    const existing = await prisma.teacher.findFirst({ where: { id: params.id, centerId: user.centerId } });
+    if (!existing) return reply.code(404).send({ error: 'TEACHER_NOT_FOUND' });
+
+    const teacher = await prisma.teacher.update({
+      where: { id: params.id },
+      data: {
+        name: input.name ?? existing.name,
+        subject: input.subject ?? existing.subject,
+        phone: input.phone !== undefined ? input.phone || null : existing.phone,
+        branchId: input.branchId !== undefined ? input.branchId || null : existing.branchId,
+      },
+    });
+
+    await prisma.auditLog.create({
+      data: { centerId: user.centerId, userId: user.id, action: 'teachers.update', entity: 'Teacher', entityId: String(params.id) },
+    });
+    return { teacher };
+  });
+
+  app.delete('/api/teachers/:id', async (request, reply) => {
+    const user = await requireUser(request, reply); if (!user) return;
+    if (!user.centerId || !(await authorize(user.id, 'teachers.delete', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
+    const params = z.object({ id: z.coerce.number().int().positive() }).parse(request.params);
+    const groupCount = await prisma.group.count({ where: { teacherId: params.id, centerId: user.centerId } });
+    if (groupCount > 0) return reply.code(422).send({ error: 'TEACHER_HAS_ACTIVE_GROUPS', message: 'لا يمكن حذف مدرس مرتبط بمجموعات دراسية نشطة' });
+
+    await prisma.teacher.delete({ where: { id: params.id } });
+    await prisma.auditLog.create({
+      data: { centerId: user.centerId, userId: user.id, action: 'teachers.delete', entity: 'Teacher', entityId: String(params.id) },
+    });
+    return { ok: true };
+  });
+
+  // GROUP CRUD
+  app.post('/api/groups', async (request, reply) => {
+    const user = await requireUser(request, reply); if (!user) return;
+    if (!user.centerId || !(await authorize(user.id, 'groups.create', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
+    const input = z.object({
+      id: z.coerce.number().int().positive().optional(),
+      teacherId: z.coerce.number().int().positive(),
+      grade: z.string().trim().min(2).max(120),
+      days: z.union([z.array(z.string()), z.string()]).transform((v) => Array.isArray(v) ? v.join(', ') : v),
+      time: z.string().trim().min(2).max(50),
+      price: z.coerce.number().int().nonnegative(),
+      courseId: z.string().optional().nullable(),
+      branchId: z.string().optional().nullable(),
+    }).parse(request.body);
+
+    const teacher = await prisma.teacher.findFirst({ where: { id: input.teacherId, centerId: user.centerId } });
+    if (!teacher) return reply.code(422).send({ error: 'INVALID_TEACHER' });
+
+    const groupId = input.id ?? ((await prisma.group.findFirst({ orderBy: { id: 'desc' }, select: { id: true } }))?.id || 100) + 1;
+    const group = await prisma.group.create({
+      data: {
+        id: groupId,
+        centerId: user.centerId,
+        branchId: input.branchId || teacher.branchId || null,
+        teacherId: input.teacherId,
+        grade: input.grade,
+        days: input.days,
+        time: input.time,
+        price: input.price,
+        courseId: input.courseId || null,
+      },
+    });
+
+    await prisma.auditLog.create({
+      data: { centerId: user.centerId, userId: user.id, action: 'groups.create', entity: 'Group', entityId: String(group.id) },
+    });
+    return { group };
+  });
+
+  app.put('/api/groups/:id', async (request, reply) => {
+    const user = await requireUser(request, reply); if (!user) return;
+    if (!user.centerId || !(await authorize(user.id, 'groups.update', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
+    const params = z.object({ id: z.coerce.number().int().positive() }).parse(request.params);
+    const input = z.object({
+      teacherId: z.coerce.number().int().positive().optional(),
+      grade: z.string().trim().min(2).max(120).optional(),
+      days: z.union([z.array(z.string()), z.string()]).transform((v) => Array.isArray(v) ? v.join(', ') : v).optional(),
+      time: z.string().trim().min(2).max(50).optional(),
+      price: z.coerce.number().int().nonnegative().optional(),
+      courseId: z.string().optional().nullable(),
+    }).parse(request.body);
+
+    const existing = await prisma.group.findFirst({ where: { id: params.id, centerId: user.centerId } });
+    if (!existing) return reply.code(404).send({ error: 'GROUP_NOT_FOUND' });
+
+    const group = await prisma.group.update({
+      where: { id: params.id },
+      data: {
+        teacherId: input.teacherId ?? existing.teacherId,
+        grade: input.grade ?? existing.grade,
+        days: input.days ?? existing.days,
+        time: input.time ?? existing.time,
+        price: input.price ?? existing.price,
+        courseId: input.courseId !== undefined ? input.courseId : existing.courseId,
+      },
+    });
+
+    await prisma.auditLog.create({
+      data: { centerId: user.centerId, userId: user.id, action: 'groups.update', entity: 'Group', entityId: String(params.id) },
+    });
+    return { group };
+  });
+
+  app.delete('/api/groups/:id', async (request, reply) => {
+    const user = await requireUser(request, reply); if (!user) return;
+    if (!user.centerId || !(await authorize(user.id, 'groups.delete', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
+    const params = z.object({ id: z.coerce.number().int().positive() }).parse(request.params);
+    const existing = await prisma.group.findFirst({ where: { id: params.id, centerId: user.centerId } });
+    if (!existing) return reply.code(404).send({ error: 'GROUP_NOT_FOUND' });
+
+    await prisma.$transaction(async (tx) => {
+      await tx.enrollment.deleteMany({ where: { groupId: params.id } });
+      await tx.attendance.deleteMany({ where: { groupId: params.id } });
+      await tx.subscription.deleteMany({ where: { groupId: params.id } });
+      await tx.payment.deleteMany({ where: { groupId: params.id } });
+      await tx.lessonSession.deleteMany({ where: { groupId: params.id } });
+      await tx.schedule.deleteMany({ where: { groupId: params.id } });
+      await tx.group.delete({ where: { id: params.id } });
+    });
+
+    await prisma.auditLog.create({
+      data: { centerId: user.centerId, userId: user.id, action: 'groups.delete', entity: 'Group', entityId: String(params.id) },
+    });
+    return { ok: true };
+  });
+
+  // BRANCHES, CLASSROOMS, COURSES
+  app.get('/api/center/branches', async (request, reply) => {
+    const user = await requireUser(request, reply); if (!user) return;
+    if (!user.centerId) return reply.code(403).send({ error: 'FORBIDDEN' });
+    const branches = await prisma.branch.findMany({ where: { centerId: user.centerId }, orderBy: { name: 'asc' } });
+    return { branches };
+  });
+
+  app.post('/api/center/classrooms', async (request, reply) => {
+    const user = await requireUser(request, reply); if (!user) return;
+    if (!user.centerId || !(await authorize(user.id, 'settings.manage', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
+    const input = z.object({ name: z.string().trim().min(2).max(100), capacity: z.coerce.number().int().positive(), branchId: z.string().optional() }).parse(request.body);
+    const classroom = await prisma.classroom.create({
+      data: { centerId: user.centerId, name: input.name, capacity: input.capacity, branchId: input.branchId || null },
+    });
+    return { classroom };
+  });
+
+  app.post('/api/center/courses', async (request, reply) => {
+    const user = await requireUser(request, reply); if (!user) return;
+    if (!user.centerId || !(await authorize(user.id, 'academic.manage_courses', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
+    const input = z.object({ name: z.string().trim().min(2).max(120), subject: z.string().trim().min(2).max(100), grade: z.string().trim().min(2).max(100) }).parse(request.body);
+    const course = await prisma.course.create({
+      data: { centerId: user.centerId, name: input.name, subject: input.subject, grade: input.grade, active: true },
+    });
+    return { course };
+  });
+
+  // FINTECH PAYMENTS & BILLING
+  app.post('/api/center/payments', async (request, reply) => {
+    const user = await requireUser(request, reply); if (!user) return;
+    if (!user.centerId || !(await authorize(user.id, 'finance.record_payment', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
+    const input = z.object({
+      studentId: z.coerce.number().int().positive(),
+      groupId: z.coerce.number().int().positive(),
+      month: z.string().regex(/^\d{4}-\d{2}$/),
+      amount: z.coerce.number().int().positive(),
+      method: z.enum(['CASH', 'CARD', 'INSTAPAY', 'VODAFONE_CASH']).default('CASH'),
+      reference: z.string().trim().max(100).optional(),
+      note: z.string().trim().max(300).optional(),
+    }).parse(request.body);
+
+    const group = await prisma.group.findFirst({ where: { id: input.groupId, centerId: user.centerId }, select: { id: true, price: true } });
+    if (!group) return reply.code(422).send({ error: 'GROUP_NOT_FOUND' });
+
+    const ref = input.reference || `REC-${Date.now().toString().slice(-6)}-${input.studentId}`;
+    const payment = await prisma.payment.upsert({
+      where: { studentId_groupId_month: { studentId: input.studentId, groupId: input.groupId, month: input.month } },
+      update: { amount: input.amount, status: 'paid', reference: `${ref} [${input.method}]` },
+      create: { studentId: input.studentId, groupId: input.groupId, month: input.month, amount: input.amount, status: 'paid', reference: `${ref} [${input.method}]` },
+    });
+
+    const isFull = input.amount >= group.price;
+    const status = isFull ? 'paid' : 'partial';
+    const subscription = await prisma.subscription.upsert({
+      where: { studentId_groupId_month: { studentId: input.studentId, groupId: input.groupId, month: input.month } },
+      update: { status, amount: group.price, discount: isFull ? 0 : group.price - input.amount },
+      create: { studentId: input.studentId, groupId: input.groupId, month: input.month, amount: group.price, discount: 0, dueOn: `${input.month}-10`, status },
+    });
+
+    await prisma.auditLog.create({
+      data: { centerId: user.centerId, userId: user.id, action: 'finance.payment', entity: 'Payment', entityId: payment.id, metadata: JSON.stringify({ amount: input.amount, method: input.method, studentId: input.studentId, groupId: input.groupId }) },
+    });
+
+    return { payment, subscription, receiptNumber: ref };
+  });
+
+  app.get('/api/center/payments', async (request, reply) => {
+    const user = await requireUser(request, reply); if (!user) return;
+    if (!user.centerId || !(await authorize(user.id, 'finance.view', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
+    const query = z.object({ month: z.string().regex(/^\d{4}-\d{2}$/).optional(), limit: z.coerce.number().int().min(1).max(500).default(100) }).parse(request.query);
+    const payments = await prisma.payment.findMany({
+      where: { group: { centerId: user.centerId }, ...(query.month ? { month: query.month } : {}) },
+      include: { student: true, group: { include: { teacher: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: query.limit,
+    });
+    return { payments };
+  });
+
+  // QUICK SCAN RECEPTION KIOSK
+  app.post('/api/center/attendance/scan', async (request, reply) => {
+    const user = await requireUser(request, reply); if (!user) return;
+    if (!user.centerId || !(await authorize(user.id, 'attendance.create', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
+    const input = z.object({
+      code: z.string().trim().min(1).max(50),
+    }).parse(request.body);
+
+    const studentId = Number(input.code.replace(/^[A-Z0-9_-]+:/i, ''));
+    if (!studentId || isNaN(studentId)) return reply.code(422).send({ error: 'INVALID_BARCODE', message: 'رمز أو رقم غير صالح' });
+
+    const student = await prisma.student.findFirst({
+      where: { id: studentId, centerId: user.centerId },
+      include: { enrollments: { include: { group: { include: { teacher: true, course: true } } } } },
+    });
+    if (!student) return reply.code(404).send({ error: 'STUDENT_NOT_FOUND', message: 'الطالب غير مسجل في السنتر' });
+
+    const today = new Date().toISOString().slice(0, 10);
+    const currentMonth = today.slice(0, 7);
+
+    const enrolledGroupIds = student.enrollments.map((e) => e.groupId);
+    if (!enrolledGroupIds.length) return reply.code(422).send({ error: 'NO_ENROLLED_GROUPS', message: 'الطالب غير مسجل في أي مجموعة' });
+
+    const todaySession = await prisma.lessonSession.findFirst({
+      where: { groupId: { in: enrolledGroupIds }, date: today },
+      include: { group: { include: { teacher: true } }, classroom: true },
+    });
+
+    const targetGroupId = todaySession ? todaySession.groupId : enrolledGroupIds[0];
+    const targetGroup = student.enrollments.find((e) => e.groupId === targetGroupId)?.group;
+
+    const attendance = await prisma.attendance.upsert({
+      where: { studentId_groupId_date: { studentId: student.id, groupId: targetGroupId, date: today } },
+      update: { status: 'PRESENT', note: 'تسجيل مسح الباركود السريع' },
+      create: { studentId: student.id, groupId: targetGroupId, date: today, status: 'PRESENT', note: 'تسجيل مسح الباركود السريع' },
+    });
+
+    const subscription = await prisma.subscription.findUnique({
+      where: { studentId_groupId_month: { studentId: student.id, groupId: targetGroupId, month: currentMonth } },
+    });
+
+    const isPaid = subscription?.status === 'paid';
+
+    await prisma.auditLog.create({
+      data: { centerId: user.centerId, userId: user.id, action: 'attendance.scan', entity: 'Attendance', entityId: `${student.id}:${targetGroupId}:${today}`, metadata: JSON.stringify({ isPaid, status: 'PRESENT' }) },
+    });
+
+    return {
+      success: true,
+      student: { id: student.id, name: student.name, phone: student.phone, parent: student.parent },
+      group: targetGroup,
+      session: todaySession,
+      attendance,
+      subscription: subscription || { status: 'pending', amount: targetGroup?.price || 0 },
+      isPaid,
+      message: `تم تسجيل حضور الطالب ${student.name} بنجاح`,
+    };
+  });
+
+  // STUDENT & PARENT PORTALS
+  app.get('/api/portal/student', async (request, reply) => {
+    const user = await requireUser(request, reply); if (!user) return;
+    if (user.role !== 'STUDENT' && user.role !== 'SUPER_ADMIN') return reply.code(403).send({ error: 'FORBIDDEN' });
+    const student = await prisma.student.findFirst({
+      where: { userId: user.id },
+      include: {
+        enrollments: { include: { group: { include: { teacher: true, course: true, schedules: true } } } },
+        attendance: { orderBy: { date: 'desc' }, take: 25 },
+        subscriptions: { orderBy: { month: 'desc' }, take: 6 },
+      },
+    });
+    if (!student) return reply.code(404).send({ error: 'STUDENT_PROFILE_NOT_LINKED' });
+
+    const totalAtt = student.attendance.length;
+    const presentCount = student.attendance.filter((a) => a.status === 'PRESENT' || a.status === 'p').length;
+    const attendanceRate = totalAtt > 0 ? Math.round((presentCount / totalAtt) * 100) : 100;
+
+    return { student, attendanceRate };
+  });
+
+  app.get('/api/portal/parent', async (request, reply) => {
+    const user = await requireUser(request, reply); if (!user) return;
+    if (user.role !== 'GUARDIAN' && user.role !== 'SUPER_ADMIN') return reply.code(403).send({ error: 'FORBIDDEN' });
+    const guardian = await prisma.guardian.findUnique({
+      where: { userId: user.id },
+      include: {
+        children: {
+          include: {
+            student: {
+              include: {
+                enrollments: { include: { group: { include: { teacher: true, course: true } } } },
+                attendance: { orderBy: { date: 'desc' }, take: 10 },
+                subscriptions: { orderBy: { month: 'desc' }, take: 3 },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!guardian) return reply.code(404).send({ error: 'GUARDIAN_PROFILE_NOT_LINKED' });
+    return { guardian, children: guardian.children.map((c) => c.student) };
+  });
+
+  // SESSIONS STATUS PATCH
+  app.patch('/api/center/sessions/:id', async (request, reply) => {
+    const user = await requireUser(request, reply); if (!user) return;
+    if (!user.centerId || !(await authorize(user.id, 'groups.manage_schedule', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
+    const params = z.object({ id: z.string() }).parse(request.params);
+    const input = z.object({
+      status: z.enum(['scheduled', 'active', 'completed', 'cancelled']),
+      topic: z.string().trim().max(200).optional(),
+    }).parse(request.body);
+
+    const session = await prisma.lessonSession.update({
+      where: { id: params.id },
+      data: {
+        status: input.status,
+        ...(input.topic ? { topic: input.topic } : {}),
+      },
+      include: { group: true },
+    });
+
+    await prisma.auditLog.create({
+      data: { centerId: user.centerId, userId: user.id, action: 'sessions.update', entity: 'LessonSession', entityId: session.id, metadata: JSON.stringify({ status: session.status }) },
+    });
+    return { session };
+  });
+
   return app;
 }
 

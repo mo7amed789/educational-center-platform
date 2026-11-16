@@ -16,11 +16,17 @@
 - XLSX import/export with manager-only access, file-size/signature validation, and audit events.
 - `/readyz`, `/metrics`, production configuration guards, and CI verification workflow.
 - Center operational summary reports and manager-only audit-log API.
+- Full modern Apple/Fintech UI design system with Obsidian Dark and Porcelain Light themes, glassmorphism, and responsive navigation.
+- Spotlight Command Palette (Cmd+K / Ctrl+K) for instant fuzzy search across students, teachers, pages, and actions.
+- Interactive Kiosk Reception Barcode / QR Scanner with Web Audio chime, real-time student verification, fee status alerts, and WhatsApp parent messaging.
+- Complete Student CRUD, Teacher CRUD, and Group CRUD APIs with center isolation and audit logs.
+- Fintech Subscriptions & Payments API with payment methods (Cash, Card, InstaPay, Vodafone Cash) and printable electronic receipts.
+- Dedicated role-based portals for Teacher, Student (with Apple Wallet ID pass), and Parent (with live child status).
+- End-to-end integration test suite covering all student lifecycle operations, scanning, payments, and portals.
 
 ## In progress
 
-- Backend resource-level authorization and tenant-isolation tests.
-- API-backed frontend portals.
+- PostgreSQL production migration and durable background jobs.
 
 ## Not complete yet
 
