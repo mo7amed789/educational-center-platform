@@ -1,0 +1,352 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  CENTER_OWNER
+  CENTER_ADMIN
+  BRANCH_ADMIN
+  RECEPTIONIST
+  ACCOUNTANT
+  TEACHER
+  STUDENT
+  GUARDIAN
+}
+
+model Center {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  branches  Branch[]
+  users     User[]
+  teachers  Teacher[]
+  students  Student[]
+  guardians Guardian[]
+  groups    Group[]
+  courses   Course[]
+  academicYears AcademicYear[]
+  classrooms Classroom[]
+  sessions  Session[]
+  auditLogs AuditLog[]
+  memberships CenterMembership[]
+}
+
+model Branch {
+  id        String   @id @default(cuid())
+  centerId  String
+  name      String
+  center    Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  users     User[]
+  teachers  Teacher[]
+  students  Student[]
+  groups    Group[]
+  classrooms Classroom[]
+  memberships BranchMembership[]
+  @@unique([centerId, name])
+  @@index([centerId])
+}
+
+model User {
+  id           String    @id @default(cuid())
+  centerId     String?
+  branchId     String?
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         Role
+  active       Boolean   @default(true)
+  mfaSecret    String?
+  mfaEnabled   Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  center       Center?   @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  branch       Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  sessions     Session[]
+  auditLogs    AuditLog[]
+  teacher      Teacher?
+  student      Student?
+  guardian     Guardian?
+  centerMemberships CenterMembership[]
+  branchMemberships BranchMembership[]
+  permissionOverrides UserPermission[]
+  @@index([centerId, branchId, role])
+}
+
+model Session {
+  id        String   @id
+  userId    String
+  centerId  String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  center    Center?  @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  @@index([userId, expiresAt])
+}
+
+model Teacher {
+  id        Int      @id
+  centerId  String
+  branchId  String?
+  userId    String?  @unique
+  name      String
+  subject   String
+  phone     String?
+  center    Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  branch    Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  groups    Group[]
+  @@index([centerId, branchId])
+}
+
+model Student {
+  id        Int      @id
+  centerId  String
+  branchId  String?
+  userId    String?  @unique
+  name      String
+  phone     String?
+  parent    String?
+  center    Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  branch    Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  enrollments Enrollment[]
+  attendance Attendance[]
+  payments  Payment[]
+  subscriptions Subscription[]
+  guardianLinks StudentGuardian[]
+  @@index([centerId, branchId])
+}
+
+model Group {
+  id        Int      @id
+  centerId  String
+  branchId  String?
+  teacherId Int
+  grade     String
+  days      String
+  time      String
+  price     Int
+  courseId  String?
+  academicYearId String?
+  center    Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  branch    Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  enrollments Enrollment[]
+  attendance Attendance[]
+  payments  Payment[]
+  subscriptions Subscription[]
+  course    Course?  @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  academicYear AcademicYear? @relation(fields: [academicYearId], references: [id], onDelete: SetNull)
+  schedules Schedule[]
+  lessons   LessonSession[]
+  @@index([centerId, branchId, teacherId])
+}
+
+model Course {
+  id        String   @id @default(cuid())
+  centerId  String
+  name      String
+  subject   String
+  grade     String
+  active    Boolean  @default(true)
+  center    Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  groups    Group[]
+  @@unique([centerId, name, grade])
+  @@index([centerId, subject])
+}
+
+model AcademicYear {
+  id        String   @id @default(cuid())
+  centerId  String
+  name      String
+  startsOn  String
+  endsOn    String
+  active    Boolean  @default(true)
+  center    Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  groups    Group[]
+  @@unique([centerId, name])
+}
+
+model Classroom {
+  id        String   @id @default(cuid())
+  centerId  String
+  branchId  String?
+  name      String
+  capacity  Int
+  center    Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  branch    Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  schedules Schedule[]
+  lessons   LessonSession[]
+  @@unique([centerId, name])
+  @@index([centerId, branchId])
+}
+
+model Schedule {
+  id          String   @id @default(cuid())
+  groupId     Int
+  classroomId String?
+  dayOfWeek   String
+  startsAt    String
+  endsAt      String
+  group       Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  classroom   Classroom? @relation(fields: [classroomId], references: [id], onDelete: SetNull)
+  lessons     LessonSession[]
+  @@unique([groupId, dayOfWeek, startsAt])
+  @@index([classroomId, dayOfWeek, startsAt])
+}
+
+model LessonSession {
+  id          String   @id @default(cuid())
+  groupId     Int
+  classroomId String?
+  scheduleId  String?
+  date        String
+  startsAt    String
+  endsAt      String
+  status      String   @default("scheduled")
+  topic       String?
+  group       Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  classroom   Classroom? @relation(fields: [classroomId], references: [id], onDelete: SetNull)
+  schedule    Schedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  @@unique([groupId, date, startsAt])
+  @@index([date, classroomId])
+}
+
+model Enrollment {
+  studentId Int
+  groupId   Int
+  createdAt DateTime @default(now())
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  @@id([studentId, groupId])
+}
+
+model Attendance {
+  studentId Int
+  groupId   Int
+  date      String
+  status    String
+  note      String?
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  @@id([studentId, groupId, date])
+  @@index([groupId, date])
+}
+
+model Payment {
+  id        String   @id @default(cuid())
+  studentId Int
+  groupId   Int
+  month     String
+  amount    Int
+  status    String   @default("paid")
+  reference String?
+  createdAt DateTime @default(now())
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  @@unique([studentId, groupId, month])
+  @@index([groupId, month])
+}
+
+model Subscription {
+  id        String   @id @default(cuid())
+  studentId Int
+  groupId   Int
+  month     String
+  amount    Int
+  discount  Int      @default(0)
+  dueOn     String
+  status    String   @default("pending")
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  @@unique([studentId, groupId, month])
+  @@index([groupId, month, status])
+}
+
+model Guardian {
+  id        String   @id @default(cuid())
+  centerId  String
+  userId    String   @unique
+  name      String
+  phone     String?
+  center    Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  children  StudentGuardian[]
+  @@index([centerId])
+}
+
+model StudentGuardian {
+  guardianId String
+  studentId  Int
+  relation   String
+  guardian   Guardian @relation(fields: [guardianId], references: [id], onDelete: Cascade)
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  @@id([guardianId, studentId])
+  @@index([studentId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  centerId  String?
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  metadata  String?
+  createdAt DateTime @default(now())
+  center    Center?  @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  @@index([centerId, createdAt])
+}
+
+model Permission {
+  key         String   @id
+  description String
+  roleGrants  RolePermission[]
+  userGrants  UserPermission[]
+}
+
+model RolePermission {
+  role         Role
+  permissionKey String
+  permission   Permission @relation(fields: [permissionKey], references: [key], onDelete: Cascade)
+  @@id([role, permissionKey])
+  @@index([permissionKey])
+}
+
+model UserPermission {
+  userId        String
+  permissionKey String
+  allowed       Boolean
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission    Permission @relation(fields: [permissionKey], references: [key], onDelete: Cascade)
+  @@id([userId, permissionKey])
+  @@index([permissionKey])
+}
+
+model CenterMembership {
+  userId    String
+  centerId  String
+  role      Role
+  active    Boolean  @default(true)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  center    Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  @@id([userId, centerId])
+  @@index([centerId, role])
+}
+
+model BranchMembership {
+  userId   String
+  branchId String
+  active   Boolean @default(true)
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  @@id([userId, branchId])
+  @@index([branchId])
+}

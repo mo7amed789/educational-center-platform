@@ -1,0 +1,3363 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="light" data-palette="indigo">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#4f46e5">
+<title>إدارة السنتر التعليمي الذكية</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ==========================================================================
+   THEME VARIABLES & COLOR PALETTES
+   ========================================================================== */
+:root {
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-full: 9999px;
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --font-family: 'Cairo', system-ui, -apple-system, sans-serif;
+  
+  /* Status Colors */
+  --ok: #16a34a;
+  --ok-bg: #dcfce7;
+  --ok-border: #86efac;
+  --on-ok: #14532d;
+  
+  --er: #dc2626;
+  --er-bg: #fee2e2;
+  --er-border: #fca5a5;
+  --on-er: #7f1d1d;
+  
+  --wn: #d97706;
+  --wn-bg: #fef3c7;
+  --wn-border: #fcd34d;
+  --on-wn: #78350f;
+
+  --info: #0284c7;
+  --info-bg: #e0f2fe;
+  --info-border: #7dd3fc;
+  --on-info: #0369a1;
+
+  --wa: #25d366;
+  --wa-bg: #dcfce7;
+  --wa-dark: #128c7e;
+  
+  box-sizing: border-box;
+}
+
+/* Light Mode Palettes */
+:root, [data-theme="light"][data-palette="indigo"] {
+  --pr: #4f46e5;
+  --pr-hover: #4338ca;
+  --pr-subtle: #eef2ff;
+  --pr-border: #c7d2fe;
+  --on-pr: #ffffff;
+  --on-pr-subtle: #3730a3;
+  --pr-gradient: linear-gradient(135deg, #4f46e5, #6366f1);
+  
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-alt: #f1f5f9;
+  --surface-hover: #e2e8f0;
+  --border: #e2e8f0;
+  --border-focus: #818cf8;
+  
+  --tx: #0f172a;
+  --tx-muted: #475569;
+  --tx-dim: #94a3b8;
+  
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px -2px rgba(0,0,0,0.08), 0 2px 6px -2px rgba(0,0,0,0.04);
+  --shadow-lg: 0 12px 28px -4px rgba(0,0,0,0.12), 0 4px 10px -2px rgba(0,0,0,0.04);
+}
+
+[data-theme="light"][data-palette="emerald"] {
+  --pr: #059669;
+  --pr-hover: #047857;
+  --pr-subtle: #ecfdf5;
+  --pr-border: #a7f3d0;
+  --on-pr: #ffffff;
+  --on-pr-subtle: #065f46;
+  --pr-gradient: linear-gradient(135deg, #059669, #10b981);
+  --border-focus: #34d399;
+}
+
+[data-theme="light"][data-palette="sapphire"] {
+  --pr: #2563eb;
+  --pr-hover: #1d4ed8;
+  --pr-subtle: #eff6ff;
+  --pr-border: #bfdbfe;
+  --on-pr: #ffffff;
+  --on-pr-subtle: #1e40af;
+  --pr-gradient: linear-gradient(135deg, #2563eb, #3b82f6);
+  --border-focus: #60a5fa;
+}
+
+[data-theme="light"][data-palette="amethyst"] {
+  --pr: #7c3aed;
+  --pr-hover: #6d28d9;
+  --pr-subtle: #f5f3ff;
+  --pr-border: #ddd6fe;
+  --on-pr: #ffffff;
+  --on-pr-subtle: #5b21b6;
+  --pr-gradient: linear-gradient(135deg, #7c3aed, #8b5cf6);
+  --border-focus: #a78bfa;
+}
+
+[data-theme="light"][data-palette="amber"] {
+  --pr: #d97706;
+  --pr-hover: #b45309;
+  --pr-subtle: #fffbeb;
+  --pr-border: #fde68a;
+  --on-pr: #ffffff;
+  --on-pr-subtle: #92400e;
+  --pr-gradient: linear-gradient(135deg, #d97706, #f59e0b);
+  --border-focus: #fbbf24;
+}
+
+[data-theme="light"][data-palette="rose"] {
+  --pr: #e11d48;
+  --pr-hover: #be123c;
+  --pr-subtle: #fff1f2;
+  --pr-border: #fecdd3;
+  --on-pr: #ffffff;
+  --on-pr-subtle: #9f1239;
+  --pr-gradient: linear-gradient(135deg, #e11d48, #f43f5e);
+  --border-focus: #fb7185;
+}
+
+/* Dark Mode Palettes */
+[data-theme="dark"], [data-theme="dark"][data-palette="indigo"] {
+  --pr: #818cf8;
+  --pr-hover: #a5b4fc;
+  --pr-subtle: #1e1b4b;
+  --pr-border: #3730a3;
+  --on-pr: #0b0f19;
+  --on-pr-subtle: #c7d2fe;
+  --pr-gradient: linear-gradient(135deg, #6366f1, #818cf8);
+  
+  --bg: #0b0f19;
+  --surface: #131b2e;
+  --surface-alt: #1c2640;
+  --surface-hover: #263354;
+  --border: #24304f;
+  --border-focus: #818cf8;
+  
+  --tx: #f1f5f9;
+  --tx-muted: #94a3b8;
+  --tx-dim: #64748b;
+  
+  --ok: #4ade80;
+  --ok-bg: #052e16;
+  --ok-border: #166534;
+  --on-ok: #bbf7d0;
+  
+  --er: #f87171;
+  --er-bg: #450a0a;
+  --er-border: #991b1b;
+  --on-er: #fecaca;
+  
+  --wn: #fbbf24;
+  --wn-bg: #451a03;
+  --wn-border: #92400e;
+  --on-wn: #fef3c7;
+
+  --info: #38bdf8;
+  --info-bg: #082f49;
+  --info-border: #0369a1;
+  --on-info: #bae6fd;
+  
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 14px rgba(0,0,0,0.45);
+  --shadow-lg: 0 14px 30px rgba(0,0,0,0.6);
+}
+
+[data-theme="dark"][data-palette="emerald"] {
+  --pr: #34d399;
+  --pr-hover: #6ee7b7;
+  --pr-subtle: #064e3b;
+  --pr-border: #047857;
+  --on-pr: #06281e;
+  --on-pr-subtle: #a7f3d0;
+  --pr-gradient: linear-gradient(135deg, #059669, #34d399);
+  --border-focus: #34d399;
+}
+
+[data-theme="dark"][data-palette="sapphire"] {
+  --pr: #60a5fa;
+  --pr-hover: #93c5fd;
+  --pr-subtle: #172554;
+  --pr-border: #1d4ed8;
+  --on-pr: #081a3e;
+  --on-pr-subtle: #bfdbfe;
+  --pr-gradient: linear-gradient(135deg, #2563eb, #60a5fa);
+  --border-focus: #60a5fa;
+}
+
+[data-theme="dark"][data-palette="amethyst"] {
+  --pr: #a78bfa;
+  --pr-hover: #c4b5fd;
+  --pr-subtle: #2e1065;
+  --pr-border: #5b21b6;
+  --on-pr: #1c093a;
+  --on-pr-subtle: #ddd6fe;
+  --pr-gradient: linear-gradient(135deg, #7c3aed, #a78bfa);
+  --border-focus: #a78bfa;
+}
+
+[data-theme="dark"][data-palette="amber"] {
+  --pr: #fbbf24;
+  --pr-hover: #fcd34d;
+  --pr-subtle: #451a03;
+  --pr-border: #92400e;
+  --on-pr: #260e00;
+  --on-pr-subtle: #fef3c7;
+  --pr-gradient: linear-gradient(135deg, #d97706, #fbbf24);
+  --border-focus: #fbbf24;
+}
+
+[data-theme="dark"][data-palette="rose"] {
+  --pr: #fb7185;
+  --pr-hover: #fda4af;
+  --pr-subtle: #4c0519;
+  --pr-border: #9f1239;
+  --on-pr: #2a020d;
+  --on-pr-subtle: #fecdd3;
+  --pr-gradient: linear-gradient(135deg, #e11d48, #fb7185);
+  --border-focus: #fb7185;
+}
+
+/* ==========================================================================
+   BASE & RESET
+   ========================================================================== */
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--tx);
+  font-family: var(--font-family);
+  font-size: 15px;
+  line-height: 1.6;
+  display: flex;
+  min-height: 100vh;
+  transition: background-color var(--transition-normal), color var(--transition-normal);
+}
+button, input, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+/* Focus styles */
+:focus-visible {
+  outline: 3px solid var(--pr);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   LAYOUT: SIDEBAR & MAIN WRAPPER
+   ========================================================================== */
+.sidebar {
+  width: 240px;
+  background: var(--surface);
+  border-inline-end: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  z-index: 50;
+  transition: width var(--transition-normal), background-color var(--transition-normal);
+  flex-shrink: 0;
+}
+
+.brand-section {
+  padding: 24px 20px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.brand-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--pr-gradient);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+}
+
+.brand-info h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--tx);
+  line-height: 1.2;
+}
+
+.brand-info span {
+  font-size: 12px;
+  color: var(--tx-muted);
+  font-weight: 500;
+}
+
+.nav-menu {
+  flex: 1;
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+}
+
+.nav-item {
+  background: none;
+  border: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tx-muted);
+  cursor: pointer;
+  width: 100%;
+  text-align: start;
+  transition: var(--transition-fast);
+  position: relative;
+}
+
+.nav-item:hover {
+  background: var(--surface-alt);
+  color: var(--tx);
+}
+
+.nav-item.active {
+  background: var(--pr-subtle);
+  color: var(--pr);
+  font-weight: 700;
+}
+
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 4px;
+  border-radius: 4px;
+  background: var(--pr);
+}
+
+.nav-item i {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+}
+
+.nav-badge {
+  margin-inline-start: auto;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--surface-hover);
+  color: var(--tx-muted);
+}
+
+.nav-item.active .nav-badge {
+  background: var(--pr);
+  color: var(--on-pr);
+}
+
+/* Sidebar Footer / Quick Info */
+.sidebar-footer {
+  padding: 14px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.today-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--tx-muted);
+  background: var(--surface-alt);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+}
+
+/* Main Content Area */
+.main-wrapper {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Topbar Header */
+.topbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Theme & Palette Controls */
+.palette-picker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface-alt);
+  padding: 4px 8px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+}
+
+.palette-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+
+.palette-dot:hover {
+  transform: scale(1.15);
+}
+
+.palette-dot.active {
+  border-color: var(--tx);
+  transform: scale(1.1);
+}
+
+.theme-mode-btn {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: var(--tx);
+  transition: var(--transition-fast);
+}
+
+.theme-mode-btn:hover {
+  background: var(--surface-hover);
+  transform: rotate(15deg);
+}
+
+/* Main View Container */
+.view-container {
+  padding: 24px 28px 100px;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Page Title Header */
+.view-header {
+  margin-bottom: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.view-header h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--tx);
+  line-height: 1.25;
+}
+
+.view-header p {
+  margin: 4px 0 0;
+  color: var(--tx-muted);
+  font-size: 14px;
+}
+
+.view-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ==========================================================================
+   BUTTONS & CONTROLS
+   ========================================================================== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background: var(--pr);
+  color: var(--on-pr);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.btn:hover {
+  background: var(--pr-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  background: var(--surface-alt);
+  color: var(--tx);
+  border-color: var(--border);
+}
+
+.btn-secondary:hover {
+  background: var(--surface-hover);
+  color: var(--tx);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--pr);
+  border-color: var(--pr-border);
+}
+
+.btn-outline:hover {
+  background: var(--pr-subtle);
+  border-color: var(--pr);
+}
+
+.btn-sm {
+  min-height: 32px;
+  padding: 0 12px;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+}
+
+.btn-icon {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  display: grid;
+  place-items: center;
+}
+
+.btn-wa {
+  background: #25d366;
+  color: #ffffff;
+}
+
+.btn-wa:hover {
+  background: #20bd5a;
+  color: #ffffff;
+}
+
+.btn-danger {
+  background: var(--er);
+  color: #fff;
+}
+
+.btn-danger:hover {
+  background: #b91c1c;
+}
+
+/* ==========================================================================
+   WIDGETS: DASHBOARD CARDS & GRIDS
+   ========================================================================== */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-widget {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.stat-widget:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.stat-widget-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.stat-widget-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  display: grid;
+  place-items: center;
+  background: var(--pr-subtle);
+  color: var(--pr);
+}
+
+.stat-widget-icon.ok {
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+
+.stat-widget-icon.er {
+  background: var(--er-bg);
+  color: var(--er);
+}
+
+.stat-widget-icon.wn {
+  background: var(--wn-bg);
+  color: var(--wn);
+}
+
+.stat-widget-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tx-muted);
+}
+
+.stat-widget-value {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--tx);
+  line-height: 1.1;
+  margin-bottom: 6px;
+}
+
+.stat-widget-sub {
+  font-size: 12px;
+  color: var(--tx-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Progress bar inside widget */
+.progress-bar-wrap {
+  width: 100%;
+  height: 8px;
+  background: var(--surface-alt);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--pr-gradient);
+  transition: width 0.4s ease;
+}
+
+.progress-bar-fill.ok {
+  background: var(--ok);
+}
+
+/* Two-column Widgets Row */
+.widgets-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.widget-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+}
+
+.widget-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.widget-card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--tx);
+}
+
+.widget-card-title svg {
+  color: var(--pr);
+}
+
+/* Widget Lists */
+.widget-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 380px;
+  overflow-y: auto;
+  padding-inline-end: 4px;
+}
+
+.schedule-card {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  transition: border-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.schedule-card:hover {
+  border-color: var(--pr-border);
+  transform: translateX(-2px);
+}
+
+.schedule-info b {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--tx);
+}
+
+.schedule-info span {
+  display: block;
+  font-size: 13px;
+  color: var(--tx-muted);
+  margin-top: 2px;
+}
+
+.unpaid-card {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.unpaid-info b {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--tx);
+}
+
+.unpaid-info span {
+  display: block;
+  font-size: 12px;
+  color: var(--tx-muted);
+}
+
+.price-pill {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--er);
+  background: var(--er-bg);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+
+/* Empty Widget State */
+.widget-empty {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--tx-muted);
+}
+
+.widget-empty svg {
+  width: 44px;
+  height: 44px;
+  opacity: 0.4;
+  margin-bottom: 8px;
+}
+
+/* ==========================================================================
+   ATTENDANCE & SUBSCRIPTIONS STYLING
+   ========================================================================== */
+.filter-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tx-muted);
+}
+
+.field input, .field select {
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-alt);
+  color: var(--tx);
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.field input:focus, .field select:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--pr-subtle);
+  background: var(--surface);
+}
+
+/* Summary Ribbon in Attendance */
+.summary-ribbon {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.chip-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  color: var(--tx);
+}
+
+.chip-stat.ok {
+  background: var(--ok-bg);
+  color: var(--on-ok);
+  border-color: var(--ok-border);
+}
+
+.chip-stat.er {
+  background: var(--er-bg);
+  color: var(--on-er);
+  border-color: var(--er-border);
+}
+
+.chip-stat.wn {
+  background: var(--wn-bg);
+  color: var(--on-wn);
+  border-color: var(--wn-border);
+}
+
+/* Day Carousel / History */
+.history-section {
+  margin-bottom: 20px;
+}
+
+.history-section h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--tx-muted);
+  margin: 0 0 8px;
+}
+
+.day-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.day-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 8px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 140px;
+  cursor: pointer;
+  text-align: start;
+  transition: var(--transition-fast);
+  color: var(--tx);
+}
+
+.day-btn:hover {
+  border-color: var(--pr-border);
+}
+
+.day-btn.active {
+  background: var(--pr-subtle);
+  border-color: var(--pr);
+  color: var(--pr);
+}
+
+.day-btn b {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.day-btn span {
+  font-size: 11px;
+  color: var(--tx-muted);
+}
+
+.day-btn.active span {
+  color: var(--pr);
+}
+
+/* Student Cards List */
+.student-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.student-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition-fast);
+}
+
+.student-card:hover {
+  border-color: var(--border-focus);
+}
+
+.student-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 220px;
+  flex: 1;
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--pr-subtle);
+  color: var(--pr);
+  font-weight: 800;
+  font-size: 16px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border: 1px solid var(--pr-border);
+}
+
+.student-meta b {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--tx);
+}
+
+.student-meta span {
+  display: block;
+  font-size: 13px;
+  color: var(--tx-muted);
+}
+
+.student-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Segmented Attendance Buttons */
+.attendance-toggle {
+  display: flex;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  padding: 3px;
+  gap: 2px;
+}
+
+.attendance-toggle button {
+  background: none;
+  border: 0;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tx-muted);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.attendance-toggle button[data-state="p"].active {
+  background: var(--ok);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: var(--shadow-sm);
+}
+
+.attendance-toggle button[data-state="a"].active {
+  background: var(--er);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Pay Button */
+.btn-pay {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+  color: var(--tx-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: var(--transition-fast);
+}
+
+.btn-pay.paid {
+  background: var(--ok-bg);
+  border-color: var(--ok-border);
+  color: var(--on-ok);
+  font-weight: 700;
+}
+
+.btn-pay.unpaid {
+  background: var(--surface-alt);
+  border-color: var(--border);
+  color: var(--tx-muted);
+}
+
+.btn-pay.unpaid:hover {
+  border-color: var(--er);
+  color: var(--er);
+}
+
+/* Search Bar */
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  padding: 0 16px;
+  min-height: 46px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition-fast);
+}
+
+.search-box:focus-within {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--pr-subtle);
+}
+
+.search-box input {
+  flex: 1;
+  background: none;
+  border: 0;
+  outline: none;
+  color: var(--tx);
+  font-size: 14px;
+}
+
+/* Tag Pills */
+.group-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--tx-muted);
+}
+
+/* ==========================================================================
+   MODAL DIALOG
+   ========================================================================== */
+dialog {
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--tx);
+  padding: 24px;
+  width: min(92vw, 480px);
+  max-height: 90vh;
+  box-shadow: var(--shadow-lg);
+}
+
+dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+dialog h2 {
+  margin: 0 0 18px;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.chk-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 8px;
+  background: var(--surface-alt);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
+.chk-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.chk-label input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--pr);
+}
+
+/* Floating Action Button (FAB) */
+.fab {
+  position: fixed;
+  inset-block-end: 24px;
+  inset-inline-start: 24px;
+  height: 52px;
+  padding: 0 22px;
+  border-radius: var(--radius-full);
+  background: var(--pr-gradient);
+  color: #fff;
+  border: 0;
+  font-weight: 700;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  box-shadow: var(--shadow-lg);
+  z-index: 45;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.fab:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+}
+
+/* Toast Notification (Snackbar) */
+#sn {
+  position: fixed;
+  inset-inline: 20px;
+  inset-block-end: 24px;
+  margin: auto;
+  max-width: 420px;
+  background: #1e293b;
+  color: #f8fafc;
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  z-index: 100;
+  box-shadow: var(--shadow-lg);
+  font-size: 14px;
+}
+
+#sn button {
+  background: none;
+  border: 0;
+  color: #818cf8;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+/* Print Styles */
+@media print {
+  .sidebar, .topbar, .fab, #sn, .btn, .attendance-toggle, .btn-pay, .dialog-actions {
+    display: none !important;
+  }
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .main-wrapper {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .view-container {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+  .student-card, .widget-card, .stat-widget {
+    border: 1px solid #ccc !important;
+    box-shadow: none !important;
+    page-break-inside: avoid;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 900px) {
+  .widgets-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  body {
+    flex-direction: column-reverse;
+  }
+  .sidebar {
+    position: fixed;
+    inset-inline: 0;
+    inset-block-end: 0;
+    top: auto;
+    width: 100%;
+    height: 64px;
+    flex-direction: row;
+    border-inline-end: 0;
+    border-top: 1px solid var(--border);
+    padding: 0;
+  }
+  .brand-section, .sidebar-footer {
+    display: none;
+  }
+  .nav-menu {
+    flex-direction: row;
+    justify-content: space-around;
+    padding: 4px 8px;
+    width: 100%;
+  }
+  .nav-item {
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 8px;
+    font-size: 11px;
+    text-align: center;
+    border-radius: var(--radius-sm);
+  }
+  .nav-item.active::before {
+    display: none;
+  }
+  .nav-badge {
+    display: none;
+  }
+  .topbar {
+    padding: 10px 16px;
+  }
+  .view-container {
+    padding: 16px 16px 80px;
+  }
+  .fab {
+    inset-block-end: 76px;
+    inset-inline-start: 16px;
+  }
+}
+
+  /* Role selection and account context */
+  .role-gate[hidden] { display: none; }
+  .role-gate { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 24px; background: var(--bg); overflow-y: auto; }
+  .role-gate-card { width: min(560px, 100%); padding: 32px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); text-align: center; }
+  .role-gate-mark { display: grid; place-items: center; width: 64px; height: 64px; margin: 0 auto 16px; border-radius: var(--radius-md); background: var(--pr-subtle); font-size: 30px; }
+  .role-gate-card .eyebrow { color: var(--on-pr-subtle); font-size: 12px; font-weight: 800; }
+  .role-gate-card h1 { margin: 8px 0 6px; color: var(--tx); font-size: clamp(24px, 5vw, 32px); }
+  .role-gate-card > p { margin: 0 0 22px; color: var(--tx-muted); }
+  .role-options { display: grid; gap: 10px; text-align: start; }
+  .role-option { display: grid; grid-template-columns: 44px 1fr 24px; align-items: center; gap: 12px; width: 100%; padding: 14px; color: var(--tx); text-align: start; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); cursor: pointer; transition: border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast); font: inherit; }
+  .role-option:hover, .role-option:focus-visible { background: var(--pr-subtle); border-color: var(--pr); transform: translateY(-1px); outline: none; }
+  .role-option-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: var(--radius-sm); background: var(--surface-alt); font-size: 22px; }
+  .role-option strong, .role-option small { display: block; }
+  .role-option strong { font-size: 15px; }
+  .role-option small { margin-top: 3px; color: var(--tx-muted); font-size: 12px; }
+  .role-option-arrow { color: var(--pr); font-size: 20px; }
+  .role-gate-note { margin-top: 18px !important; margin-bottom: 0 !important; font-size: 12px; }
+  .auth-form { display: grid; gap: 12px; margin-top: 22px; text-align: start; }
+  .auth-form label { color: var(--tx-muted); font-size: 12px; font-weight: 700; }
+  .auth-form input { width: 100%; margin-top: 5px; }
+  .auth-status { min-height: 20px; margin: 0; color: var(--er); font-size: 12px; }
+  #mfaField[hidden] { display: none; }
+  .auth-success { color: var(--ok); }
+  .role-options[hidden], .auth-form[hidden], #logoutBtn[hidden] { display: none; }
+  .role-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 10px; color: var(--tx); background: var(--surface-alt); border: 1px solid var(--border); border-radius: var(--radius-full); cursor: pointer; font: inherit; font-size: 12px; font-weight: 700; }
+  .role-chip:hover, .role-chip:focus-visible { border-color: var(--pr); outline: none; }
+  body.role-locked > *:not(#roleGate) { visibility: hidden; }
+  body.role-locked #roleGate { visibility: visible; }
+  @media (max-width: 640px) { .role-gate-card { padding: 24px 18px; } .role-option { grid-template-columns: 40px 1fr 20px; gap: 10px; padding: 12px; } .role-option-icon { width: 40px; height: 40px; } }
+
+/* Unslop pass: a quiet classroom-like shell with one restrained accent */
+:root {
+  --font-family: 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  --pr: #0f766e;
+  --pr-hover: #115e59;
+  --pr-subtle: #e8f3f1;
+  --pr-border: #a9d5cf;
+  --on-pr: #ffffff;
+  --on-pr-subtle: #115e59;
+  --pr-gradient: var(--pr);
+  --bg: #f6f7f5;
+  --surface: #ffffff;
+  --surface-alt: #eef1ef;
+  --surface-hover: #e3e9e6;
+  --border: #d8dfdc;
+  --border-focus: #0f766e;
+  --tx: #1f2a27;
+  --tx-muted: #5d6b66;
+  --tx-dim: #87938e;
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px rgba(31, 42, 39, .05);
+  --shadow-md: 0 5px 16px rgba(31, 42, 39, .08);
+  --shadow-lg: 0 14px 32px rgba(31, 42, 39, .12);
+}
+[data-theme="dark"], [data-theme="dark"][data-palette] {
+  --pr: #69b8ae;
+  --pr-hover: #8bcac2;
+  --pr-subtle: #173936;
+  --pr-border: #28645d;
+  --on-pr: #102321;
+  --on-pr-subtle: #b9e1db;
+  --pr-gradient: var(--pr);
+  --bg: #151a19;
+  --surface: #1d2422;
+  --surface-alt: #252e2b;
+  --surface-hover: #303b37;
+  --border: #35423e;
+  --border-focus: #69b8ae;
+  --tx: #edf3f1;
+  --tx-muted: #aab8b3;
+  --tx-dim: #74827d;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.24);
+  --shadow-md: 0 6px 18px rgba(0,0,0,.28);
+  --shadow-lg: 0 14px 32px rgba(0,0,0,.34);
+}
+body { font-size: 16px; letter-spacing: 0; }
+.sidebar { width: 256px; }
+.brand-section { padding: 24px 20px 20px; gap: 12px; }
+.brand-logo { width: 40px; height: 40px; border-radius: 10px; background: var(--pr); box-shadow: none; }
+.brand-info h2, .view-header h1 { font-weight: 600; }
+.nav-menu { padding: 20px 12px; gap: 4px; }
+.nav-item { min-height: 36px; padding: 8px 12px; border-radius: 8px; font-weight: 500; }
+.nav-item.active { color: var(--on-pr-subtle); font-weight: 600; }
+.nav-item.active::before { width: 3px; top: 9px; bottom: 9px; border-radius: 2px; }
+.nav-badge { padding: 1px 7px; font-variant-numeric: tabular-nums; }
+.topbar { padding: 16px 32px; }
+.view-container { max-width: 1440px; padding: 32px 40px 96px; }
+.view-header { margin-bottom: 28px; gap: 20px; }
+.view-header h1 { font-size: 28px; line-height: 1.35; }
+.view-header p { margin-top: 6px; line-height: 1.7; }
+.btn { min-height: 40px; padding: 0 16px; border-radius: 9px; font-weight: 500; transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast); }
+.btn:hover { transform: none; box-shadow: none; }
+.btn-sm { min-height: 34px; border-radius: 8px; }
+.theme-mode-btn { border-radius: 9px; transition: background-color var(--transition-fast), border-color var(--transition-fast); }
+.theme-mode-btn:hover { transform: none; }
+.stats-grid { gap: 16px; margin-bottom: 28px; }
+.stat-widget, .widget-card { border-radius: 14px; box-shadow: var(--shadow-sm); }
+.stat-widget { padding: 20px; transition: border-color var(--transition-fast), box-shadow var(--transition-fast); }
+.stat-widget:hover { transform: none; box-shadow: var(--shadow-md); }
+.stat-widget-icon { width: 36px; height: 36px; border-radius: 9px; }
+.stat-widget-value { font-weight: 600; font-variant-numeric: tabular-nums; }
+.widget-card { padding: 20px; }
+.widget-card-title { font-weight: 600; }
+.schedule-card, .student-card { border-radius: 10px; box-shadow: none; }
+.schedule-card:hover, .student-card:hover { transform: none; }
+.filter-card { border-radius: 12px; box-shadow: none; }
+.role-gate { background: var(--bg); }
+.role-gate-card { width: min(600px, 100%); padding: 36px; border-radius: 16px; box-shadow: var(--shadow-lg); }
+.role-gate-mark { width: 56px; height: 56px; margin-bottom: 20px; border-radius: 12px; background: var(--pr); color: white; font-size: 0; }
+.role-gate-mark::before { content: 'م'; font-size: 27px; font-weight: 600; }
+.role-gate-card .eyebrow { color: var(--pr); font-weight: 500; }
+.role-gate-card h1 { font-weight: 600; }
+.role-option { border-radius: 10px; transition: background-color var(--transition-fast), border-color var(--transition-fast); }
+.role-option:hover, .role-option:focus-visible { transform: none; }
+.role-option-icon { border-radius: 9px; background: var(--surface-alt); color: var(--pr); font-size: 0; }
+.role-option-icon::before { content: '•'; font-size: 24px; line-height: 1; }
+.role-option-arrow { font-size: 18px; }
+input, select, textarea { border-radius: 8px; }
+@media (max-width: 900px) { .view-container { padding-inline: 24px; } .topbar { padding-inline: 24px; } }
+
+</style>
+</head>
+<body>
+
+<!-- ROLE GATE -->
+<section class="role-gate" id="roleGate" aria-labelledby="roleGateTitle" hidden>
+  <div class="role-gate-card">
+    <div class="role-gate-mark" aria-hidden="true">🎓</div>
+    <span class="eyebrow">منصة السنتر التعليمية</span>
+    <h1 id="roleGateTitle">أهلاً بك في المنصة</h1>
+    <p id="roleGateDescription">اختار بوابتك ثم سجّل الدخول. الصلاحيات يتم تحديدها من الحساب الموثق على الخادم.</p>
+    <form class="auth-form" id="authForm" onsubmit="return login(event)">
+      <div class="field"><label for="loginEmail">البريد الإلكتروني</label><input id="loginEmail" name="email" type="email" autocomplete="username" required placeholder="owner@example.local"></div>
+      <div class="field"><label for="loginPassword">كلمة المرور</label><input id="loginPassword" name="password" type="password" autocomplete="current-password" required minlength="8"></div>
+      <div class="field" id="mfaField" hidden><label for="loginMfaCode">رمز التحقق المؤقت</label><input id="loginMfaCode" name="mfaCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000"></div>
+      <button class="btn" id="loginBtn" type="submit">تسجيل الدخول</button>
+      <p class="auth-status" id="authStatus" role="alert"></p>
+    </form>
+    <div class="role-options" id="roleOptions" role="list">
+      <button class="role-option" type="button" onclick="choosePortal('center')">
+        <span class="role-option-icon">👑</span>
+        <span><strong>مدير السنتر</strong><small>كل الصلاحيات: الطلاب، المدرسون، المجموعات، الحضور، الاشتراكات والنسخ الاحتياطي</small></span>
+        <span class="role-option-arrow" aria-hidden="true">←</span>
+      </button>
+      <button class="role-option" type="button" onclick="choosePortal('worker')">
+        <span class="role-option-icon">🧑‍💼</span>
+        <span><strong>موظف السنتر</strong><small>إدارة الطلاب وتسجيل الحضور، بدون إعدادات أو اشتراكات مالية</small></span>
+        <span class="role-option-arrow" aria-hidden="true">←</span>
+      </button>
+      <button class="role-option" type="button" onclick="choosePortal('teacher')">
+        <span class="role-option-icon">👨‍🏫</span>
+        <span><strong>مدرس</strong><small>عرض الحصص والمجموعات وتسجيل الحضور فقط</small></span>
+        <span class="role-option-arrow" aria-hidden="true">←</span>
+      </button>
+      <button class="role-option" type="button" onclick="choosePortal('student')">
+        <span class="role-option-icon">👨‍🎓</span>
+        <span><strong>طالب</strong><small>عرض لوحة الطالب والمواعيد والمعلومات المسموح بها فقط</small></span>
+        <span class="role-option-arrow" aria-hidden="true">←</span>
+      </button>
+      <button class="role-option" type="button" onclick="choosePortal('parent')">
+        <span class="role-option-icon">👨‍👩‍👧</span>
+        <span><strong>ولي أمر</strong><small>متابعة الأبناء والحضور والمواعيد والمدفوعات المسموح بها</small></span>
+        <span class="role-option-arrow" aria-hidden="true">←</span>
+      </button>
+    </div>
+    <p class="role-gate-note" id="roleGateNote">اختيار البوابة لا يمنح صلاحيات. الخادم هو مصدر الحقيقة.</p>
+  </div>
+</section>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="brand-section">
+    <div class="brand-logo">
+      <svg viewBox="0 0 24 24"><path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/></svg>
+    </div>
+    <div class="brand-info">
+      <h2>إدارة السنتر</h2>
+      <span>لوحة التحكم الذكية</span>
+    </div>
+  </div>
+  
+  <nav class="nav-menu" id="navMenu">
+    <!-- Populated by JS -->
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="today-chip">
+      <svg viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19a2 2 0 002 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg>
+      <span id="sidebarDateText">اليوم</span>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN WRAPPER -->
+<div class="main-wrapper">
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-right">
+      <div style="font-weight: 700; font-size: 15px; color: var(--tx)" id="topbarTitle">
+        نظام السنتر
+      </div>
+    </div>
+    
+    <div class="topbar-left">
+
+      <button class="role-chip" id="roleChip" type="button" onclick="changeRole()" title="تغيير نوع الحساب">
+        <span id="roleChipIcon">•</span><span id="roleChipLabel">اختيار الدور</span>
+      </button>
+      <button class="btn btn-secondary btn-sm" id="logoutBtn" type="button" onclick="logoutSession()" hidden>تسجيل الخروج</button>
+      <button class="btn btn-secondary btn-sm" id="mfaBtn" type="button" onclick="openMfaSetup()" hidden>إعداد MFA</button>
+
+      <!-- Theme Mode (Light / Dark) -->
+      <button class="theme-mode-btn" id="themeToggleBtn" onclick="toggleThemeMode()" title="تبديل الوضع الليلي / النهاري">
+        <svg id="themeIcon" viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/></svg>
+      </button>
+
+      <!-- Backup Export Button -->
+      <button class="btn btn-secondary btn-sm" id="backupBtn" onclick="exportData()" title="تنزيل نسخة احتياطية من البيانات">
+        <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+        نسخ احتياطي
+      </button>
+      <button class="btn btn-secondary btn-sm" id="excelExportBtn" onclick="exportExcel()" title="تصدير بيانات السنتر إلى Excel">
+        تصدير Excel
+      </button>
+
+      <!-- Print Button -->
+      <button class="btn btn-secondary btn-sm" id="printBtn" onclick="window.print()" title="طباعة">
+        <svg viewBox="0 0 24 24"><path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/></svg>
+      </button>
+
+      <input type="file" id="importInput" style="display:none" accept=".json,.xlsx" onchange="importData(event)">
+    </div>
+  </header>
+
+  <!-- View Container -->
+  <div class="view-container">
+    <div class="view-header">
+      <div>
+        <h1 id="viewTitle">لوحة التحكم</h1>
+        <p id="viewSubtitle">نظرة عامة على نشاط السنتر والحصص والاشتراكات</p>
+      </div>
+      <div class="view-actions" id="viewActions">
+        <!-- Actions rendered dynamically -->
+      </div>
+    </div>
+
+    <!-- Main Dynamic Content -->
+    <main id="v"></main>
+  </div>
+</div>
+
+<!-- MODAL DIALOG -->
+<dialog id="dlg" aria-labelledby="dt">
+  <form method="dialog" id="fm" onsubmit="return sv(event)">
+    <h2 id="dt">إضافة</h2>
+    <div id="ff" class="dialog-form"></div>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-secondary" onclick="dlg.close()">إلغاء</button>
+      <button class="btn" type="submit">حفظ البيانات</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="mfaDlg" aria-labelledby="mfaTitle">
+  <form method="dialog" onsubmit="return false">
+    <h2 id="mfaTitle">التحقق بخطوتين</h2>
+    <div class="dialog-form">
+      <p id="mfaIntro" style="margin:0;color:var(--tx-muted);line-height:1.7">أضف هذا الحساب إلى تطبيق المصادقة ثم أدخل الرمز المكون من 6 أرقام</p>
+      <div id="mfaQrWrap" style="display:grid;place-items:center;padding:16px;background:var(--surface-alt);border:1px solid var(--border);border-radius:12px"><img id="mfaQrCode" alt="QR Code لإعداد MFA" width="240" height="240" hidden></div>
+      <div class="field"><label for="mfaSecret">المفتاح السري</label><input id="mfaSecret" readonly dir="ltr" style="font-family:monospace;text-align:left"></div>
+      <div class="field"><label for="mfaOtpAuth">رابط تطبيق المصادقة</label><input id="mfaOtpAuth" readonly dir="ltr" style="font-size:12px;text-align:left"></div>
+      <div class="field"><label for="mfaVerifyCode">رمز التحقق</label><input id="mfaVerifyCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000"></div>
+      <p class="auth-status" id="mfaStatus" role="alert"></p>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-secondary" onclick="mfaDlg.close()">إلغاء</button>
+      <button type="button" class="btn btn-danger" id="mfaDisableBtn" onclick="disableMfaFromUi()" hidden>تعطيل MFA</button>
+      <button type="button" class="btn" id="mfaActionBtn" onclick="enableMfaFromUi()">تفعيل MFA</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- SNACKBAR -->
+<div id="sn" role="status" aria-live="polite">
+  <span id="snt"></span>
+  <button id="sna" type="button"></button>
+</div>
+
+<script>
+var enrollmentTargetGroup = null;
+/* Center Admin Smart System - Application Logic */
+var P = {
+  dash: 'M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z',
+  att: 'M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19a2 2 0 002 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM10.5 16.5l-3-3 1.4-1.4 1.6 1.6 4.6-4.6 1.4 1.4-6 6z',
+  stu: 'M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z',
+  tea: 'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z',
+  add: 'M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z',
+  ed: 'M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z',
+  del: 'M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z',
+  q: 'M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z',
+  wa: 'M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2m.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 012.41 5.83c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 01-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24m4.52 11.66c-.25-.13-1.47-.72-1.7-.81-.23-.08-.39-.13-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.13-1.06-.39-2.01-1.24-.74-.66-1.24-1.48-1.39-1.73-.14-.25-.02-.39.11-.51.11-.11.25-.29.37-.43.13-.15.17-.25.25-.42.08-.17.04-.31-.02-.44-.06-.13-.56-1.35-.77-1.85-.2-.49-.41-.42-.56-.43-.14-.01-.31-.01-.47-.01-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1 0 1.24.9 2.44 1.03 2.61.13.17 1.77 2.7 4.29 3.79.6.26 1.07.41 1.43.53.6.19 1.15.16 1.58.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.15-1.18-.06-.11-.23-.17-.48-.3z',
+  phone: 'M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z',
+  sun: 'M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58a.996.996 0 00-1.41 0 .996.996 0 000 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37a.996.996 0 00-1.41 0 .996.996 0 000 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96a.996.996 0 00-1.41-1.41l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36a.996.996 0 00-1.41-1.41l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z',
+  moon: 'M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z',
+  money: 'M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z',
+  check: 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'
+};
+
+function ic(name) {
+  return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + (P[name] || P.dash) + '"/></svg>';
+}
+
+/* Constants & Normalization */
+var GR = ['الأول الثانوي', 'الثاني الثانوي', 'الثالث الثانوي', 'الأول الإعدادي', 'الثاني الإعدادي', 'الثالث الإعدادي'];
+var WD = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
+
+function normalizeDays(v) {
+  if (Array.isArray(v)) return v.filter(function(d) { return WD.indexOf(d) > -1; });
+  var s = String(v || '');
+  var a = [
+    ['السبت', 'سبت'], ['الأحد', 'أحد'], ['الاثنين', 'اثنين'],
+    ['الثلاثاء', 'ثلاثاء'], ['الأربعاء', 'أربعاء'], ['الخميس', 'خميس'], ['الجمعة', 'جمعة']
+  ];
+  return a.filter(function(x) { return s.indexOf(x[1]) > -1; }).map(function(x) { return x[0]; });
+}
+
+function dayLabel(g) {
+  return normalizeDays(g.days).join(' و ') || 'لم تحدد أيام';
+}
+
+function getArabicDayName(dateStr) {
+  var days = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+  var dt = dateStr ? new Date(dateStr) : new Date();
+  return days[dt.getDay()];
+}
+
+function localDate() {
+  var d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+
+function getCurrentWeekDates() {
+  var today = new Date(localDate() + 'T00:00:00');
+  var saturdayOffset = (today.getDay() + 1) % 7;
+  var dates = [];
+  for (var i = 0; i < 7; i++) {
+    var date = new Date(today);
+    date.setDate(today.getDate() - saturdayOffset + i);
+    dates.push(new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10));
+  }
+  return dates;
+}
+
+function waUrl(phone, msg) {
+  var p = (phone || '').replace(/[\s\-\+]/g, '');
+  if (p.startsWith('0')) p = '20' + p.slice(1);
+  return 'https://wa.me/' + p + (msg ? '?text=' + encodeURIComponent(msg) : '');
+}
+
+/* Application State */
+var S = {
+  teachers: [
+    { id: 1, name: 'أ/ محمد علي', subject: 'رياضيات', phone: '01012345678' },
+    { id: 2, name: 'أ/ سارة أحمد', subject: 'علوم', phone: '01198765432' }
+  ],
+  groups: [
+    { id: 1, t: 1, grade: 'الأول الثانوي', days: ['السبت', 'الثلاثاء'], time: '4:00 م', price: 150 },
+    { id: 2, t: 1, grade: 'الثاني الثانوي', days: ['الأحد', 'الأربعاء'], time: '6:00 م', price: 180 },
+    { id: 3, t: 2, grade: 'الأول الثانوي', days: ['الاثنين', 'الخميس'], time: '5:00 م', price: 140 }
+  ],
+  students: [
+    { id: 1, name: 'أحمد محمود', phone: '01011112222', parent: '01233334444', g: [1, 3] },
+    { id: 2, name: 'يوسف إبراهيم', phone: '01055556666', parent: '01277778888', g: [1] },
+    { id: 3, name: 'مريم حسن', phone: '01099990000', parent: '01211110000', g: [2] },
+    { id: 4, name: 'نور خالد', phone: '01022223333', parent: '01244445555', g: [1] }
+  ],
+  att: {},
+  pay: {}
+};
+
+var STORE = 'center-admin-v2:data';
+var ROLE_STORE = 'center-admin-v2:role';
+var currentRole = null;
+var currentUser = null;
+var LOCAL_MODE = false;
+var pendingPortal = null;
+var remoteSessions = [];
+var remoteSubscriptions = [];
+var remoteReport = null;
+var scheduleStatus = 'all';
+var subscriptionStatus = 'all';
+var subscriptionSearch = '';
+var API_BASE = window.location.protocol === 'file:' ? 'http://127.0.0.1:3000' : '';
+var ROLE_DEFINITIONS = {
+  center: { label: 'مدير السنتر', icon: 'م', views: ['dashboard', 'schedule', 'subscriptions', 'reports', 'attendance', 'students', 'teachers'], canManage: true, canManageStudents: true, canWriteAttendance: true },
+  worker: { label: 'موظف السنتر', icon: 'و', views: ['dashboard', 'schedule', 'attendance', 'students'], canManage: false, canManageStudents: true, canWriteAttendance: true },
+  teacher: { label: 'مدرس', icon: 'د', views: ['dashboard', 'schedule', 'attendance'], canManage: false, canManageStudents: false, canWriteAttendance: true },
+  student: { label: 'طالب', icon: 'ط', views: ['dashboard'], canManage: false, canManageStudents: false, canWriteAttendance: false },
+  parent: { label: 'ولي أمر', icon: 'و', views: ['dashboard'], canManage: false, canManageStudents: false, canWriteAttendance: false }
+};
+var view = 'dashboard';
+var q = '';
+var nid = 100;
+var dirTeacher = 1;
+var formKind = '';
+var sel = {
+  t: 1,
+  grade: '',
+  g: 1,
+  d: localDate(),
+  m: localDate().slice(0, 7)
+};
+var dr = {};
+var drK = '';
+var edit = null;
+var tm = null;
+
+function apiRequest(path, options) {
+  var opts = options || {};
+  opts.headers = Object.assign(opts.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }, opts.headers || {});
+  return fetch(API_BASE + path, opts).then(function(response) {
+    return response.json().catch(function() { return {}; }).then(function(body) {
+      if (!response.ok) {
+        var error = new Error(body.error || 'REQUEST_FAILED');
+        error.status = response.status;
+        throw error;
+      }
+      return body;
+    });
+  });
+}
+
+function roleForBackendUser(user) {
+  if (!user || !user.role) return null;
+  if (user.role === 'TEACHER') return 'teacher';
+  if (user.role === 'STUDENT') return 'student';
+  if (user.role === 'GUARDIAN') return 'parent';
+  if (user.role === 'CENTER_OWNER' || user.role === 'CENTER_ADMIN' || user.role === 'SUPER_ADMIN') return 'center';
+  return 'worker';
+}
+
+function setAuthStatus(message, success) {
+  var status = $('authStatus');
+  if (!status) return;
+  status.textContent = message || '';
+  status.classList.toggle('auth-success', !!success);
+}
+
+function login(e) {
+  e.preventDefault();
+  var form = new FormData($('authForm'));
+  var button = $('loginBtn');
+  button.disabled = true;
+  setAuthStatus('جارٍ التحقق من الحساب...', false);
+  apiRequest('/api/auth/login', { method: 'POST', body: JSON.stringify({ email: form.get('email'), password: form.get('password'), mfaCode: form.get('mfaCode') || undefined }) })
+    .then(function(result) {
+      currentUser = result.user;
+      var role = roleForBackendUser(currentUser);
+      if (!role) throw new Error('ROLE_NOT_SUPPORTED');
+      if (pendingPortal && pendingPortal !== role) throw new Error('PORTAL_NOT_AUTHORIZED');
+      setAuthStatus('تم تسجيل الدخول باسم ' + currentUser.name, true);
+      selectRole(role);
+    })
+    .catch(function(error) {
+      currentUser = null;
+      if (error.message === 'MFA_REQUIRED') {
+        $('mfaField').hidden = false;
+        $('loginMfaCode').required = true;
+        $('loginMfaCode').focus();
+        setAuthStatus('أدخل رمز التحقق المؤقت من تطبيق المصادقة', false);
+      } else {
+        setAuthStatus(error.message === 'PORTAL_NOT_AUTHORIZED' ? 'هذا الحساب غير مصرح له بدخول البوابة المختارة' : error.message === 'ROLE_NOT_SUPPORTED' ? 'هذا الدور غير مدعوم في الواجهة الحالية' : 'بيانات الدخول غير صحيحة أو الخادم غير متاح', false);
+      }
+    })
+    .finally(function() { button.disabled = false; });
+  return false;
+}
+
+function logoutSession() {
+  var finish = function() {
+    currentUser = null;
+    currentRole = null;
+    localStorage.removeItem(ROLE_STORE);
+    showRoleGate();
+    setAuthStatus('', false);
+    $('roleOptions').hidden = false;
+  };
+  if (LOCAL_MODE) { finish(); return; }
+  apiRequest('/api/auth/logout', { method: 'POST' }).catch(function() {}).finally(finish);
+}
+
+function loadStudentsFromApi() {
+  if (!currentUser || !currentUser.centerId || ['center', 'worker', 'teacher'].indexOf(currentRole) < 0) return Promise.resolve();
+  return apiRequest('/api/students?page=1&pageSize=100')
+    .then(function(result) {
+      S.students = (result.items || []).map(function(student) {
+        return { id: student.id, name: student.name, phone: student.phone || '', parent: student.parent || '', g: (student.enrollments || []).map(function(enrollment) { return enrollment.groupId; }) };
+      });
+      persist();
+      renderNav();
+      render();
+    })
+    .catch(function() { snack('تعذر تحميل الطلاب من الخادم'); });
+}
+
+function loadCenterOverviewFromApi() {
+  if (!currentUser || ['center', 'worker', 'teacher'].indexOf(currentRole) < 0) return Promise.resolve();
+  return apiRequest('/api/center/overview').then(function(result) {
+    S.teachers = (result.teachers || []).map(function(teacher) {
+      return { id: teacher.id, name: teacher.name, subject: teacher.subject, phone: teacher.phone || '' };
+    });
+    S.groups = (result.groups || []).map(function(group) {
+      return { id: group.id, t: group.teacherId, grade: group.grade, days: normalizeDays(group.days), time: group.time, price: group.price, schedules: group.schedules || [], lessons: group.lessons || [], course: group.course || null };
+    });
+    if (S.teachers.length && !by('teachers', dirTeacher)) dirTeacher = S.teachers[0].id;
+    renderNav();
+    render();
+  }).catch(function() { snack('تعذر تحميل بيانات المدرسين والجداول من الخادم'); });
+}
+
+function loadOperationsFromApi() {
+  if (!currentUser) return Promise.resolve();
+  var requests = [];
+  if (['center', 'worker', 'teacher'].indexOf(currentRole) > -1) {
+    requests.push(apiRequest('/api/center/sessions').then(function(result) { remoteSessions = result.items || []; }));
+    requests.push(apiRequest('/api/center/attendance').then(function(result) {
+      (result.items || []).forEach(function(item) {
+        var state = ({ PRESENT: 'p', ABSENT: 'a', LATE: 'l', EXCUSED: 'e' })[item.status] || '';
+        if (state) S.att[item.groupId + '|' + item.date] = Object.assign({}, S.att[item.groupId + '|' + item.date] || {}, (function() { var m = {}; m[item.studentId] = state; return m; })());
+      });
+      persist();
+    }));
+  }
+  if (currentRole === 'center') {
+    requests.push(apiRequest('/api/center/subscriptions').then(function(result) {
+      remoteSubscriptions = result.items || [];
+      remoteSubscriptions.forEach(function(item) {
+        var key = item.studentId + '|' + item.groupId + '|' + item.month;
+        if (item.status === 'paid') S.pay[key] = true;
+      });
+      persist();
+    }));
+    requests.push(apiRequest('/api/center/reports/summary').then(function(result) { remoteReport = result; }));
+  }
+  return Promise.all(requests).then(function() { renderNav(); render(); }).catch(function() { snack('تعذر تحميل الجداول أو الاشتراكات'); });
+}
+
+function roleDef() { return ROLE_DEFINITIONS[currentRole] || null; }
+function can(action) {
+  var r = roleDef();
+  if (!r) return false;
+  if (action === 'manage') return r.canManage;
+  if (action === 'manage:students') return r.canManageStudents;
+  if (action === 'attendance:write') return r.canWriteAttendance;
+  if (action === 'view:' + view) return r.views.indexOf(view) > -1;
+  return false;
+}
+function requirePermission(action) {
+  if (can(action)) return true;
+  snack(action === 'manage:students' ? 'هذا الإجراء متاح لمدير أو موظف السنتر فقط' : action === 'attendance:write' ? 'ليس لديك صلاحية لتسجيل الحضور' : 'هذا الإجراء متاح لمدير السنتر فقط');
+  return false;
+}
+function showRoleGate() {
+  document.body.classList.add('role-locked');
+  $('roleGate').hidden = false;
+  $('roleChip').style.display = 'none';
+  $('logoutBtn').hidden = true;
+  $('roleOptions').hidden = false;
+  $('authForm').hidden = false;
+}
+function hideRoleGate() {
+  document.body.classList.remove('role-locked');
+  $('roleGate').hidden = true;
+  $('roleChip').style.display = '';
+  $('logoutBtn').hidden = false;
+}
+function updateRoleContext() {
+  var r = roleDef();
+  if (!r) return;
+  $('roleChipIcon').textContent = r.icon;
+  $('roleChipLabel').textContent = r.label;
+  $('topbarTitle').textContent = r.label + ' · نظام السنتر';
+  $('backupBtn').style.display = r.canManage ? '' : 'none';
+  $('printBtn').style.display = r.canManage ? '' : 'none';
+  $('mfaBtn').hidden = !r.canManage;
+  $('mfaBtn').textContent = currentUser && currentUser.mfaEnabled ? 'إدارة MFA' : 'إعداد MFA';
+}
+function selectRole(role) {
+  if (!ROLE_DEFINITIONS[role]) return;
+  if (!currentUser) { snack('يجب تسجيل الدخول أولاً'); return; }
+  currentRole = role;
+  localStorage.setItem(ROLE_STORE, role);
+  view = 'dashboard';
+  hideRoleGate();
+  updateRoleContext();
+  renderNav();
+  render();
+  loadStudentsFromApi().then(loadCenterOverviewFromApi).then(loadOperationsFromApi);
+  snack('تم الدخول بصلاحيات: ' + ROLE_DEFINITIONS[role].label);
+}
+function choosePortal(portal) {
+  if (!ROLE_DEFINITIONS[portal]) return;
+  pendingPortal = portal;
+  setAuthStatus('تم اختيار بوابة ' + ROLE_DEFINITIONS[portal].label + '. أدخل بيانات الحساب للمتابعة.', false);
+  $('loginEmail').focus();
+}
+function changeRole() {
+  showRoleGate();
+}
+
+function openMfaSetup() {
+  if (!currentUser || currentRole !== 'center') { snack('إعداد MFA متاح لمدير السنتر فقط'); return; }
+  $('mfaStatus').textContent = 'جارٍ إنشاء مفتاح إعداد جديد...';
+  $('mfaSecret').value = '';
+  $('mfaOtpAuth').value = '';
+  $('mfaVerifyCode').value = '';
+      $('mfaQrCode').hidden = true;
+  apiRequest('/api/auth/mfa/setup', { method: 'POST', body: JSON.stringify({}) })
+    .then(function(result) {
+      $('mfaSecret').value = result.secret || '';
+      $('mfaOtpAuth').value = result.otpauthUrl || '';
+      $('mfaQrCode').src = result.qrDataUrl || '';
+      $('mfaQrCode').hidden = !result.qrDataUrl;
+      $('mfaStatus').textContent = 'افتح تطبيق المصادقة، أضف المفتاح، ثم اكتب الرمز الحالي';
+      $('mfaStatus').classList.remove('auth-success');
+      $('mfaDisableBtn').hidden = !(currentUser && currentUser.mfaEnabled);
+      $('mfaActionBtn').disabled = false;
+      $('mfaActionBtn').textContent = currentUser && currentUser.mfaEnabled ? 'إعادة التفعيل بالمفتاح الجديد' : 'تفعيل MFA';
+      $('mfaDlg').showModal();
+    })
+    .catch(function() { $('mfaStatus').textContent = 'تعذر إنشاء إعداد MFA'; });
+}
+
+function disableMfaFromUi() {
+  var code = $('mfaVerifyCode').value.trim();
+  if (!/^\d{6}$/.test(code)) { $('mfaStatus').textContent = 'اكتب رمزًا مكونًا من 6 أرقام لتعطيل MFA'; return; }
+  apiRequest('/api/auth/mfa/disable', { method: 'POST', body: JSON.stringify({ code: code }) })
+    .then(function() {
+      currentUser.mfaEnabled = false;
+      $('mfaStatus').textContent = 'تم تعطيل MFA لهذا الحساب';
+      $('mfaStatus').classList.add('auth-success');
+      $('mfaDisableBtn').hidden = true;
+      updateRoleContext();
+    })
+    .catch(function() { $('mfaStatus').textContent = 'الرمز غير صحيح أو انتهت صلاحيته'; });
+}
+
+function enableMfaFromUi() {
+  var code = $('mfaVerifyCode').value.trim();
+  if (!/^\d{6}$/.test(code)) { $('mfaStatus').textContent = 'اكتب رمزًا مكونًا من 6 أرقام'; return; }
+  apiRequest('/api/auth/mfa/enable', { method: 'POST', body: JSON.stringify({ code: code }) })
+    .then(function() {
+      currentUser.mfaEnabled = true;
+      $('mfaStatus').textContent = 'تم تفعيل MFA لهذا الحساب';
+      $('mfaStatus').classList.add('auth-success');
+      $('mfaActionBtn').textContent = 'تم التفعيل';
+      $('mfaActionBtn').disabled = true;
+      updateRoleContext();
+    })
+    .catch(function() { $('mfaStatus').textContent = 'الرمز غير صحيح أو انتهت صلاحيته'; });
+}
+
+/* LocalStorage Persistence */
+function persist() {
+  try {
+    localStorage.setItem(STORE, JSON.stringify({
+      teachers: S.teachers,
+      groups: S.groups,
+      students: S.students,
+      att: S.att,
+      pay: S.pay,
+      nid: nid
+    }));
+  } catch (e) {
+    snack('تعذر حفظ البيانات على هذا الجهاز');
+  }
+}
+
+function restore() {
+  try {
+    var raw = localStorage.getItem(STORE);
+    if (!raw) return;
+    var d = JSON.parse(raw);
+    if (d && Array.isArray(d.teachers) && Array.isArray(d.groups) && Array.isArray(d.students) && d.att && typeof d.att === 'object') {
+      S.teachers = d.teachers;
+      S.groups = d.groups;
+      S.students = d.students;
+      S.att = d.att;
+      S.pay = (d.pay && typeof d.pay === 'object') ? d.pay : {};
+      nid = Math.max(100, +d.nid || 100);
+    }
+  } catch (e) {
+    console.warn('تعذر استعادة البيانات', e);
+  }
+}
+
+/* Backup Export & Import */
+function exportData() {
+  if (!requirePermission('manage')) return;
+  var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(S, null, 2));
+  var a = document.createElement('a');
+  a.setAttribute("href", dataStr);
+  a.setAttribute("download", "center_backup_" + localDate() + ".json");
+  a.click();
+  snack("تم تنزيل النسخة الاحتياطية بنجاح ✓");
+}
+
+function exportExcel() {
+  if (!requirePermission('manage')) return;
+  if (LOCAL_MODE) { snack('تصدير Excel يحتاج تشغيل الخادم المحلي'); return; }
+  fetch(API_BASE + '/api/export/excel', { credentials: 'same-origin' })
+    .then(function(response) {
+      if (!response.ok) throw new Error('EXPORT_FAILED');
+      return response.blob();
+    })
+    .then(function(blob) {
+      var url = URL.createObjectURL(blob);
+      var link = document.createElement('a');
+      link.href = url;
+      link.download = 'center-export-' + localDate() + '.xlsx';
+      link.click();
+      URL.revokeObjectURL(url);
+      snack('تم تصدير بيانات السنتر إلى Excel');
+    })
+    .catch(function() { snack('تعذر تصدير ملف Excel'); });
+}
+
+function triggerImport() {
+  $('importInput').click();
+}
+
+function importData(e) {
+  if (!requirePermission('manage')) return;
+  var file = e.target.files[0];
+  if (!file) return;
+  var extension = file.name.toLowerCase().split('.').pop();
+  if (extension === 'xlsx' || extension === 'xls') {
+    if (LOCAL_MODE) { snack('استيراد Excel يحتاج تشغيل الخادم المحلي'); return; }
+    var formData = new FormData();
+    formData.append('file', file);
+    apiRequest('/api/import/excel', { method: 'POST', body: formData })
+      .then(function(result) {
+        return Promise.all([loadStudentsFromApi(), loadCenterOverviewFromApi(), loadOperationsFromApi()]).then(function() {
+          var summary = result.summary || {};
+          snack('تم استيراد ملف Excel: ' + formatNumber(summary.students || 0) + ' طالب و' + formatNumber(summary.teachers || 0) + ' مدرس');
+        });
+      })
+      .catch(function(error) { snack(error.message === 'XLSX_FILE_REQUIRED' ? 'اختر ملف Excel بصيغة XLSX' : 'تعذر استيراد ملف Excel، راجع أسماء الأوراق والأعمدة'); })
+      .finally(function() { e.target.value = ''; });
+    return;
+  }
+  var reader = new FileReader();
+  reader.onload = function(evt) {
+    try {
+      var d = JSON.parse(evt.target.result);
+      if (d && Array.isArray(d.teachers) && Array.isArray(d.groups) && Array.isArray(d.students)) {
+        if (LOCAL_MODE) {
+          S = d;
+          persist();
+          renderNav();
+          render();
+          snack('تم استيراد واستعادة البيانات محليًا ✓');
+          return;
+        }
+        apiRequest('/api/legacy/import', { method: 'POST', body: JSON.stringify(d) })
+          .then(function(result) {
+            S = d;
+            persist();
+            return loadStudentsFromApi().then(function() {
+              snack('تم استيراد البيانات إلى قاعدة البيانات ✓ (' + result.summary.students + ' طالب)');
+            });
+          })
+          .catch(function() { snack('تعذر استيراد البيانات إلى الخادم'); });
+      } else {
+        snack("ملف النسخة غير صالح");
+      }
+    } catch (err) {
+      snack("خطأ أثناء قراءة ملف النسخة الاحتياطية");
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+/* Themes Management */
+function initTheme() {
+  var savedMode = localStorage.getItem('center_theme_mode') || 'light';
+  var savedPalette = localStorage.getItem('center_theme_palette') || 'indigo';
+  applyTheme(savedMode, savedPalette);
+}
+
+function applyTheme(mode, palette) {
+  document.documentElement.setAttribute('data-theme', mode);
+  document.documentElement.setAttribute('data-palette', palette);
+  localStorage.setItem('center_theme_mode', mode);
+  localStorage.setItem('center_theme_palette', palette);
+  
+  var isDark = mode === 'dark';
+  var icon = $('themeIcon');
+  if (icon) {
+    icon.innerHTML = '<path d="' + (isDark ? P.sun : P.moon) + '"/>';
+  }
+  var btn = $('themeToggleBtn');
+  if (btn) {
+    btn.title = isDark ? 'التبديل إلى الوضع الفاتح' : 'التبديل إلى الوضع الليلي';
+  }
+
+  var dots = document.querySelectorAll('.palette-dot');
+  dots.forEach(function(dot) {
+    dot.classList.toggle('active', dot.getAttribute('data-p') === palette);
+  });
+}
+
+function toggleThemeMode() {
+  var cur = document.documentElement.getAttribute('data-theme') || 'light';
+  var next = cur === 'dark' ? 'light' : 'dark';
+  applyTheme(next, document.documentElement.getAttribute('data-palette') || 'indigo');
+  snack(next === 'dark' ? 'تم تفعيل الوضع الليلي 🌙' : 'تم تفعيل الوضع النهاري ☀️');
+}
+
+function setPalette(p) {
+  applyTheme(document.documentElement.getAttribute('data-theme') || 'light', p);
+  var names = {
+    indigo: 'النيلي العصري',
+    emerald: 'الزمردي الهادئ',
+    sapphire: 'الأزرق الملكي',
+    amethyst: 'البنفسجي الأنيق',
+    amber: 'العنبر الدافئ',
+    rose: 'المرجاني الوردي'
+  };
+  snack('تم تغيير لون الواجهة إلى: ' + (names[p] || p));
+}
+
+/* Utility Helpers */
+function $(i) { return document.getElementById(i); }
+function by(arr, id) { return S[arr].filter(function(x) { return x.id == id; })[0]; }
+function az(a, b) { return String(a || '').localeCompare(String(b || ''), 'ar'); }
+function gl(g) {
+  var t = by('teachers', g.t);
+  return g.grade + ' – ' + (t ? t.name : 'بدون مدرس');
+}
+function ini(n) { return (n || '').replace(/^أ\/\s*/, '').charAt(0) || 'ط'; }
+function esc(value) {
+  return String(value == null ? '' : value).replace(/[&<>'"]/g, function(ch) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[ch]; });
+}
+function formatNumber(value) {
+  var number = Number(value);
+  return Number.isFinite(number) ? number.toLocaleString('en-US') : esc(value);
+}
+function statusLabel(status) {
+  return ({ active: 'نشطة الآن', scheduled: 'مجدولة', completed: 'مكتملة', cancelled: 'ملغاة', paid: 'مدفوع', partial: 'جزئي', pending: 'معلق', overdue: 'متأخر' })[status] || status;
+}
+
+function snack(text, actionLabel, actionFn) {
+  var sn = $('sn');
+  if (!sn) return;
+  $('snt').textContent = text;
+  var b = $('sna');
+  b.textContent = actionLabel || '';
+  b.style.display = actionLabel ? '' : 'none';
+  b.onclick = function() {
+    actionFn && actionFn();
+    sn.style.display = 'none';
+  };
+  sn.style.display = 'flex';
+  clearTimeout(tm);
+  tm = setTimeout(function() { sn.style.display = 'none'; }, 5000);
+}
+
+/* Navigation System */
+var tabs = [
+  ['dashboard', 'لوحة التحكم', 'dash', function() { return ''; }],
+  ['schedule', 'الجداول والحصص', 'att', function() { return remoteSessions.length; }],
+  ['subscriptions', 'اشتراكات الطلاب', 'money', function() { return remoteSubscriptions.length; }],
+  ['reports', 'التقارير', 'dash', function() { return ''; }],
+  ['attendance', 'الحضور والاشتراكات', 'att', function() { return S.students.length; }],
+  ['students', 'الطلاب', 'stu', function() { return S.students.length; }],
+  ['teachers', 'المدرسون والمجموعات', 'tea', function() { return S.teachers.length; }]
+];
+
+function renderNav() {
+  var nav = $('navMenu');
+  if (!nav) return;
+  var allowedViews = roleDef() ? roleDef().views : [];
+  nav.innerHTML = tabs.map(function(t) {
+    if (allowedViews.indexOf(t[0]) === -1) return '';
+    var count = t[3]();
+    var isActive = view === t[0];
+    return '<button class="nav-item ' + (isActive ? 'active' : '') + '" onclick="go(\'' + t[0] + '\')">' +
+           '<i>' + ic(t[2]) + '</i>' +
+           '<span>' + t[1] + '</span>' +
+           (count ? '<span class="nav-badge">' + count + '</span>' : '') +
+           '</button>';
+  }).join('');
+}
+
+function go(targetView, extraParams) {
+  if (!roleDef() || roleDef().views.indexOf(targetView) === -1) {
+    snack('ليس لديك صلاحية لفتح هذه الصفحة');
+    return;
+  }
+  view = targetView;
+  q = '';
+  if (extraParams) {
+    if (extraParams.t) sel.t = extraParams.t;
+    if (extraParams.g) sel.g = extraParams.g;
+  }
+  renderNav();
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* Form Handlers (Add / Edit) */
+var M = {
+  teachers: { one: 'مدرس', kind: 'teacher', h: 'المدرسين' },
+  groups: { one: 'مجموعة', kind: 'group', h: 'المجموعات' },
+  students: { one: 'طالب', kind: 'student', h: 'الطلاب' }
+};
+
+
+function parseTimeString(tStr) {
+  var s = (tStr || '').trim();
+  var m = s.match(/^(\d{1,2}):(\d{2})\s*(م|ص|AM|PM|am|pm)?/i);
+  if (m) {
+    var h = parseInt(m[1], 10);
+    var min = m[2];
+    var p = m[3] || 'م';
+    if (p.toUpperCase() === 'PM') p = 'م';
+    if (p.toUpperCase() === 'AM') p = 'ص';
+    return { h: h, min: min, p: p };
+  }
+  return { h: 4, min: '00', p: 'م' };
+}
+
+function syncTimeInput() {
+  var h = $('time_h') ? $('time_h').value : '4';
+  var m = $('time_m') ? $('time_m').value : '00';
+  var p = $('time_p') ? $('time_p').value : 'م';
+  var hidden = $('group_time_hidden');
+  if (hidden) {
+    hidden.value = h + ':' + m + ' ' + p;
+  }
+}
+
+function renderTimePicker(val) {
+  var parsed = parseTimeString(val);
+  var hours = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  var minutes = ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'];
+
+  var hourOpts = hours.map(function(h) {
+    return '<option value="' + h + '"' + (h == parsed.h ? ' selected' : '') + '>' + (h < 10 ? '0' + h : h) + '</option>';
+  }).join('');
+
+  var minOpts = minutes.map(function(min) {
+    return '<option value="' + min + '"' + (min == parsed.min ? ' selected' : '') + '>' + min + '</option>';
+  }).join('');
+
+  var currentVal = parsed.h + ':' + parsed.min + ' ' + parsed.p;
+
+  return '<div class="field">' +
+           '<label>ميعاد الحصة</label>' +
+           '<div style="display:flex;gap:8px;align-items:flex-end">' +
+             '<div style="flex:1">' +
+               '<label style="font-size:11px;color:var(--tx-muted);display:block;margin-bottom:4px">الساعة</label>' +
+               '<select id="time_h" onchange="syncTimeInput()">' + hourOpts + '</select>' +
+             '</div>' +
+             '<span style="font-size:18px;font-weight:700;padding-bottom:10px;color:var(--tx)">:</span>' +
+             '<div style="flex:1">' +
+               '<label style="font-size:11px;color:var(--tx-muted);display:block;margin-bottom:4px">الدقيقة</label>' +
+               '<select id="time_m" onchange="syncTimeInput()">' + minOpts + '</select>' +
+             '</div>' +
+             '<div style="flex:1.4">' +
+               '<label style="font-size:11px;color:var(--tx-muted);display:block;margin-bottom:4px">الفترة (AM / PM)</label>' +
+               '<select id="time_p" onchange="syncTimeInput()">' +
+                 '<option value="م"' + (parsed.p === 'م' ? ' selected' : '') + '>مساءً (PM)</option>' +
+                 '<option value="ص"' + (parsed.p === 'ص' ? ' selected' : '') + '>صباحاً (AM)</option>' +
+               '</select>' +
+             '</div>' +
+             '<input type="hidden" name="time" id="group_time_hidden" value="' + currentVal + '">' +
+           '</div>' +
+         '</div>';
+}
+
+function F(k) {
+  if (k === 'teachers') {
+    return [
+      { k: 'name', l: 'اسم المدرس' },
+      { k: 'subject', l: 'المادة الدراسية' },
+      { k: 'phone', l: 'رقم التليفون', t: 'tel' }
+    ];
+  }
+  if (k === 'groups') {
+    return [
+      { k: 't', l: 'المدرس', t: 'select', o: S.teachers.map(function(x) { return [x.id, x.name]; }) },
+      { k: 'grade', l: 'الصف الدراسي', t: 'select', o: GR.map(function(x) { return [x, x]; }) },
+      { k: 'days', l: 'أيام الحصص', t: 'checks', o: WD.map(function(x) { return [x, x]; }) },
+      { k: 'time', l: 'ميعاد الحصة', t: 'time' },
+      { k: 'price', l: 'سعر الشهر (جنيه)', t: 'number' }
+    ];
+  }
+  return [
+    { k: 'name', l: 'اسم الطالب' },
+    { k: 'phone', l: 'رقم هاتف الطالب', t: 'tel' },
+    { k: 'parent', l: 'رقم ولي الأمر (لإرسال المتابعات والغياب)', t: 'tel' },
+    { k: 'g', l: 'المجموعات المسجل بها', t: 'checks', o: S.groups.map(function(g) { return [g.id, gl(g) + ' (' + g.time + ')']; }) }
+  ];
+}
+
+
+function openAddStudentToGroup(groupId) {
+  if (!requirePermission('manage:students')) return;
+  enrollmentTargetGroup = groupId || sel.g;
+  openF(null, 'students');
+}
+
+function openAssignStudentsModal(groupId) {
+  if (!requirePermission('manage:students')) return;
+  var gid = groupId || sel.g;
+  var g = by('groups', gid);
+  if (!g) return;
+  var groupName = gl(g);
+
+  $('dt').textContent = 'تعيين طلاب لمجموعة: ' + groupName;
+
+  if (!S.students.length) {
+    $('ff').innerHTML = '<div style="text-align:center;padding:24px 16px;color:var(--tx-muted)">' +
+      '<p>لا يوجد طلاب مسجلون بالسنتر بعد.</p>' +
+      '<button type="button" class="btn btn-sm" onclick="dlg.close();openAddStudentToGroup(' + gid + ')">+ إضافة طالب جديد لهذه المجموعة</button>' +
+      '</div>';
+    formKind = 'assign_students';
+    edit = gid;
+    $('dlg').showModal();
+    return;
+  }
+
+  var sorted = S.students.slice().sort(function(a, b) { return az(a.name, b.name); });
+  var html = '<p style="font-size:13px;color:var(--tx-muted);margin:0 0 10px">حدد الطلاب المراد ضمهم لهذه المجموعة (' + dayLabel(g) + ' · ' + g.time + '):</p>' +
+    '<div style="margin-bottom:10px">' +
+      '<input type="search" placeholder="بحث سريع بالاسم..." oninput="filterAssignList(this.value)" style="width:100%;min-height:38px;padding:0 12px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface-alt);color:var(--tx)">' +
+    '</div>' +
+    '<div class="chk-group" id="assignChkGroup" style="max-height:260px">' +
+      sorted.map(function(s) {
+        var isEnrolled = (s.g || []).indexOf(gid) > -1;
+        return '<label class="chk-label assign-row" data-sname="' + s.name.toLowerCase() + '">' +
+          '<input type="checkbox" name="assigned_students" value="' + s.id + '"' + (isEnrolled ? ' checked' : '') + '>' +
+          '<span style="font-weight:600">' + s.name + '</span>' +
+          '<span style="font-size:12px;color:var(--tx-muted);margin-inline-start:auto">' + (s.parent || s.phone || '') + '</span>' +
+        '</label>';
+      }).join('') +
+    '</div>';
+
+  formKind = 'assign_students';
+  edit = gid;
+  $('ff').innerHTML = html;
+  $('dlg').showModal();
+}
+
+function filterAssignList(query) {
+  var q = (query || '').trim().toLowerCase();
+  var rows = document.querySelectorAll('.assign-row');
+  rows.forEach(function(r) {
+    var name = r.getAttribute('data-sname') || '';
+    r.style.display = (!q || name.indexOf(q) > -1) ? 'flex' : 'none';
+  });
+}
+
+function openF(id, kind) {
+  var k = kind || view;
+  if (k === 'dashboard') k = 'students';
+  if (k === 'students') {
+    if (!requirePermission('manage:students')) return;
+  } else if (!requirePermission('manage')) return;
+  var m = M[k];
+  var o = id ? by(k, id) : {};
+  if (k === 'students' && !id && enrollmentTargetGroup) {
+    o.g = [enrollmentTargetGroup];
+  }
+  if (k === 'groups' && !id) o.t = dirTeacher;
+  edit = id || null;
+  formKind = k;
+
+  if (k === 'groups' && !S.teachers.length) {
+    snack('الرجاء إضافة مدرس أولاً');
+    return;
+  }
+
+  $('dt').textContent = (id ? 'تعديل بيانات ' : 'إضافة ') + m.one;
+  if (k === 'students' && !id && enrollmentTargetGroup) {
+    var tg = by('groups', enrollmentTargetGroup);
+    if (tg) $('dt').textContent = 'إضافة طالب لمجموعة ' + gl(tg);
+  }
+  $('ff').innerHTML = F(k).map(function(f) {
+    var v = o[f.k] != null ? o[f.k] : '';
+    if (f.t === 'checks') {
+      var currentList = Array.isArray(o[f.k]) ? o[f.k] : [];
+      return '<div class="field"><label>' + f.l + '</label><div class="chk-group">' +
+             (f.o.map(function(x) {
+               var checked = currentList.indexOf(x[0]) > -1 ? ' checked' : '';
+               return '<label class="chk-label"><input type="checkbox" name="' + f.k + '" value="' + x[0] + '"' + checked + '><span>' + x[1] + '</span></label>';
+             }).join('') || '<span style="color:var(--tx-muted);font-size:13px">لا توجد خيارات متاحة</span>') +
+             '</div></div>';
+    }
+    if (f.t === 'time') {
+      return renderTimePicker(v);
+    }
+    if (f.t === 'select') {
+      return '<div class="field"><label>' + f.l + '</label><select name="' + f.k + '" required>' +
+             f.o.map(function(x) { return '<option value="' + x[0] + '"' + (x[0] == v ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') +
+             '</select></div>';
+    }
+    return '<div class="field"><label>' + f.l + '</label><input name="' + f.k + '" required ' +
+           (f.t === 'tel' ? 'type="tel" inputmode="tel" ' : f.t === 'number' ? 'type="number" min="0" ' : 'type="text" ') +
+           'value="' + v + '"></div>';
+  }).join('');
+
+  $('dlg').showModal();
+}
+
+function sv(e) {
+  if (formKind === 'students' || formKind === 'assign_students') {
+    if (!requirePermission('manage:students')) return false;
+  } else if (!requirePermission('manage')) return false;
+  e.preventDefault();
+  syncTimeInput();
+  var fd = new FormData($('fm'));
+  if (formKind === 'assign_students') {
+    var targetGid = edit;
+    var chosenIds = fd.getAll('assigned_students').map(Number);
+    S.students.forEach(function(s) {
+      if (!Array.isArray(s.g)) s.g = [];
+      var has = s.g.indexOf(targetGid) > -1;
+      var want = chosenIds.indexOf(s.id) > -1;
+      if (want && !has) {
+        s.g.push(targetGid);
+      } else if (!want && has) {
+        s.g = s.g.filter(function(x) { return x !== targetGid; });
+      }
+    });
+    persist();
+    $('dlg').close();
+    snack('تم تحديث قائمة طلاب المجموعة بنجاح ✓');
+    render();
+    return false;
+  }
+  var o = {};
+  F(formKind).forEach(function(f) {
+    if (f.t === 'checks') {
+      o[f.k] = fd.getAll(f.k).map(function(v) { return f.k === 'g' ? Number(v) : v; });
+    } else {
+      o[f.k] = (f.k === 't' || f.t === 'number') ? +fd.get(f.k) : fd.get(f.k).trim();
+    }
+  });
+
+  if (edit) {
+    Object.assign(by(formKind, edit), o);
+  } else {
+    o.id = ++nid;
+    S[formKind].push(o);
+    if (formKind === 'teachers') dirTeacher = o.id;
+    if (formKind === 'students') enrollmentTargetGroup = null;
+  }
+
+  persist();
+  $('dlg').close();
+  snack(edit ? 'تم حفظ التعديلات بنجاح ✓' : 'تمت الإضافة بنجاح ✓');
+  renderNav();
+  render();
+  return false;
+}
+
+function rm(id, kind) {
+  var k = kind || view;
+  if (k === 'students') {
+    if (!requirePermission('manage:students')) return;
+  } else if (!requirePermission('manage')) return;
+  var arr = S[k];
+  var idx = arr.findIndex(function(x) { return x.id == id; });
+  var it = arr[idx];
+
+  if (k === 'teachers' && S.groups.some(function(g) { return g.t == id; })) {
+    snack('لا يمكن حذف المدرس لأن لديه مجموعات نشطة. احذف مجموعاته أولاً.');
+    return;
+  }
+  if (k === 'groups' && S.students.some(function(s) { return s.g.indexOf(id) > -1; })) {
+    snack('لا يمكن حذف المجموعة لوجود طلاب مسجلين بها. انقل الطلاب أولاً.');
+    return;
+  }
+
+  arr.splice(idx, 1);
+  persist();
+  renderNav();
+  render();
+
+  snack('تم الحذف', 'تراجع', function() {
+    arr.splice(idx, 0, it);
+    persist();
+    renderNav();
+    render();
+  });
+}
+
+/* Attendance & Payment Operations */
+function mark(studentId, state) {
+  if (!requirePermission('attendance:write')) return;
+  dr[studentId] = state;
+  S.att[drK] = Object.assign({}, dr);
+  persist();
+  render('b' + studentId + state);
+  if (!LOCAL_MODE && currentUser) {
+    apiRequest('/api/center/attendance', { method: 'POST', body: JSON.stringify({ studentId: studentId, groupId: sel.g, date: sel.d, status: ({ p: 'PRESENT', a: 'ABSENT', l: 'LATE', e: 'EXCUSED' })[state] || 'PRESENT' }) })
+      .catch(function() { snack('تعذر حفظ تسجيل الحضور على الخادم'); });
+  }
+}
+
+function markAll(ids, state) {
+  if (!requirePermission('attendance:write')) return;
+  ids.forEach(function(i) { dr[i] = state || 'p'; });
+  S.att[drK] = Object.assign({}, dr);
+  persist();
+  render();
+  snack('تم تحديد الكل (' + (state === 'a' ? 'غائب' : 'حاضر') + ')');
+  if (!LOCAL_MODE && currentUser) {
+    Promise.all(ids.map(function(studentId) {
+      return apiRequest('/api/center/attendance', { method: 'POST', body: JSON.stringify({ studentId: studentId, groupId: sel.g, date: sel.d, status: state === 'a' ? 'ABSENT' : 'PRESENT' }) });
+    })).catch(function() { snack('تم تحديث الشاشة لكن تعذر حفظ بعض سجلات الحضور'); });
+  }
+}
+
+function clearAllAttendance(ids) {
+  ids.forEach(function(i) { delete dr[i]; });
+  S.att[drK] = Object.assign({}, dr);
+  persist();
+  render();
+  snack('تم مسح تسجيلات الحصة');
+}
+
+function togglePay(studentId, groupId, monthStr) {
+  if (!requirePermission('manage')) return;
+  var g = groupId || sel.g;
+  var m = monthStr || sel.m;
+  var pk = studentId + '|' + g + '|' + m;
+  S.pay[pk] = !S.pay[pk];
+  persist();
+  render();
+  snack(S.pay[pk] ? 'تم تسجيل دفع الاشتراك ✓' : 'تم إلغاء تسجيل السداد');
+  if (!LOCAL_MODE && currentUser) {
+    var group = by('groups', g);
+    apiRequest('/api/center/subscriptions', { method: 'POST', body: JSON.stringify({ studentId: studentId, groupId: g, month: m, amount: group ? Number(group.price || 0) : 0, discount: 0, dueOn: m + '-10', status: S.pay[pk] ? 'paid' : 'pending' }) })
+      .then(function(result) {
+        var item = result.subscription;
+        remoteSubscriptions = remoteSubscriptions.filter(function(existing) { return !(existing.studentId === item.studentId && existing.groupId === item.groupId && existing.month === item.month); });
+        remoteSubscriptions.push(item);
+      })
+      .catch(function() { snack('تعذر حفظ الاشتراك على الخادم'); });
+  }
+}
+
+function copyAttendanceSummary(group, date, studentsList, attMap) {
+  var teacher = by('teachers', group.t);
+  var present = [];
+  var absent = [];
+  studentsList.forEach(function(s) {
+    if (attMap[s.id] === 'p') present.push(s.name);
+    else if (attMap[s.id] === 'a') absent.push(s.name);
+  });
+
+  var text = '📊 تقرير حصة: ' + group.grade + ' (' + (teacher ? teacher.subject : '') + ')\n' +
+             '👨‍🏫 المدرس: ' + (teacher ? teacher.name : '') + '\n' +
+             '🗓️ التاريخ: ' + date + ' - ' + getArabicDayName(date) + '\n' +
+             '⏰ الميعاد: ' + group.time + '\n' +
+             '------------------------\n' +
+             '✅ الحاضرون (' + present.length + '):\n' + (present.join('\n') || 'لا يوجد') + '\n\n' +
+             '❌ الغائبون (' + absent.length + '):\n' + (absent.join('\n') || 'لا يوجد') + '\n' +
+             '------------------------\n' +
+             'إدارة السنتر التعليمي';
+
+  navigator.clipboard.writeText(text).then(function() {
+    snack('تم نسخ تقرير الحصة للحافظة! جاهز للمشاركة على واتساب ✓');
+  }).catch(function() {
+    snack('تعذر النسخ التلقائي');
+  });
+}
+
+/* Render Controller */
+function render(focusId) {
+  var v = $('v');
+  if (!v) return;
+  var headerTitle = $('viewTitle');
+  var headerSubtitle = $('viewSubtitle');
+  var actions = $('viewActions');
+
+  var todayStr = localDate();
+  var sidebarDate = $('sidebarDateText');
+  if (sidebarDate) {
+    sidebarDate.textContent = getArabicDayName(todayStr) + '، ' + todayStr;
+  }
+
+  if (view === 'dashboard') {
+    renderDashboardView(headerTitle, headerSubtitle, actions, v);
+  } else if (view === 'schedule') {
+    renderScheduleView(headerTitle, headerSubtitle, actions, v);
+  } else if (view === 'subscriptions') {
+    renderSubscriptionsView(headerTitle, headerSubtitle, actions, v);
+  } else if (view === 'reports') {
+    renderReportsView(headerTitle, headerSubtitle, actions, v);
+  } else if (view === 'attendance') {
+    renderAttendanceView(headerTitle, headerSubtitle, actions, v);
+  } else if (view === 'students') {
+    renderStudentsView(headerTitle, headerSubtitle, actions, v);
+  } else if (view === 'teachers') {
+    renderTeachersView(headerTitle, headerSubtitle, actions, v);
+  }
+
+  if (focusId) {
+    var elem = $(focusId);
+    if (elem) elem.focus();
+  }
+}
+
+function renderScheduleView(titleElem, subElem, actionsElem, container) {
+  titleElem.textContent = 'الجداول والحصص';
+  subElem.textContent = 'عرض الحصص الأسبوعية والحصص الفعلية حسب حالتها';
+  actionsElem.innerHTML = '<button class="btn btn-secondary btn-sm" onclick="loadOperationsFromApi()">تحديث الجدول</button>';
+  var filtered = scheduleStatus === 'all' ? remoteSessions : remoteSessions.filter(function(session) { return session.status === scheduleStatus; });
+  var counts = { active: 0, scheduled: 0, completed: 0, cancelled: 0 };
+  remoteSessions.forEach(function(session) { if (counts[session.status] != null) counts[session.status] += 1; });
+  var html = '<div class="stats-grid">' +
+    '<div class="stat-widget"><div class="stat-widget-header"><span class="stat-widget-label">حصص نشطة</span><div class="stat-widget-icon ok">▶</div></div><div class="stat-widget-value">' + formatNumber(counts.active) + '</div><div class="stat-widget-sub">تحتاج متابعة اليوم</div></div>' +
+    '<div class="stat-widget"><div class="stat-widget-header"><span class="stat-widget-label">حصص مجدولة</span><div class="stat-widget-icon">◷</div></div><div class="stat-widget-value">' + formatNumber(counts.scheduled) + '</div><div class="stat-widget-sub">الحصص القادمة</div></div>' +
+    '<div class="stat-widget"><div class="stat-widget-header"><span class="stat-widget-label">حصص مكتملة</span><div class="stat-widget-icon ok">✓</div></div><div class="stat-widget-value">' + formatNumber(counts.completed) + '</div><div class="stat-widget-sub">تم تنفيذها</div></div>' +
+    '<div class="stat-widget"><div class="stat-widget-header"><span class="stat-widget-label">الحصص المعروضة</span><div class="stat-widget-icon wn">#</div></div><div class="stat-widget-value">' + formatNumber(filtered.length) + '</div><div class="stat-widget-sub">من أصل ' + formatNumber(remoteSessions.length) + '</div></div>' +
+  '</div>';
+  html += '<div class="filter-card"><div class="filter-grid"><div class="field"><label for="scheduleStatus">حالة الحصة</label><select id="scheduleStatus" onchange="scheduleStatus=this.value;render()"><option value="all"' + (scheduleStatus === 'all' ? ' selected' : '') + '>كل الحالات</option><option value="active"' + (scheduleStatus === 'active' ? ' selected' : '') + '>نشطة الآن</option><option value="scheduled"' + (scheduleStatus === 'scheduled' ? ' selected' : '') + '>مجدولة</option><option value="completed"' + (scheduleStatus === 'completed' ? ' selected' : '') + '>مكتملة</option><option value="cancelled"' + (scheduleStatus === 'cancelled' ? ' selected' : '') + '>ملغاة</option></select></div></div></div>';
+  html += '<div class="widget-card"><div class="widget-card-header"><h2 class="widget-card-title">قائمة الحصص</h2><span class="chip-stat">' + formatNumber(filtered.length) + ' حصة</span></div><div class="widget-list">';
+  if (!filtered.length) html += '<div class="widget-empty"><p><b>لا توجد حصص بهذه الحالة</b><br>غيّر الفلتر أو حدّث البيانات.</p></div>';
+  filtered.slice(0, 250).forEach(function(session) {
+    var group = session.group || {};
+    var teacher = group.teacher || {};
+    var classroom = session.classroom || {};
+    html += '<div class="schedule-card"><div class="schedule-info"><b>' + esc(group.grade || 'مجموعة دراسية') + ' · ' + esc((group.course && group.course.name) || 'مقرر عام') + '</b><span>التاريخ: ' + esc(session.date) + ' · ' + esc(getArabicDayName(session.date)) + ' · الوقت: ' + esc(session.startsAt) + ' - ' + esc(session.endsAt) + ' · المدرس: ' + esc(teacher.name || 'بدون مدرس') + ' · القاعة: ' + esc(classroom.name || 'بدون قاعة') + '</span></div><span class="chip-stat ' + (session.status === 'active' ? 'ok' : session.status === 'cancelled' ? 'er' : '') + '">' + statusLabel(session.status) + '</span></div>';
+  });
+  container.innerHTML = html + '</div></div>';
+}
+
+function renderSubscriptionsView(titleElem, subElem, actionsElem, container) {
+  titleElem.textContent = 'اشتراكات الطلاب';
+  subElem.textContent = 'متابعة الحالة الشهرية والطلاب المتأخرين في السداد';
+  actionsElem.innerHTML = '<button class="btn btn-secondary btn-sm" onclick="loadOperationsFromApi()">تحديث الاشتراكات</button>';
+  var searchTerm = subscriptionSearch.trim().toLowerCase();
+  var filtered = remoteSubscriptions.filter(function(item) {
+    var matchesStatus = subscriptionStatus === 'all' || item.status === subscriptionStatus;
+    var student = item.student || {};
+    var group = item.group || {};
+    var searchable = [student.name, student.phone, group.grade, group.days, item.month, item.dueOn].join(' ').toLowerCase();
+    return matchesStatus && (!searchTerm || searchable.indexOf(searchTerm) > -1);
+  });
+  var totals = { paid: 0, partial: 0, pending: 0, overdue: 0 };
+  remoteSubscriptions.forEach(function(item) { if (totals[item.status] != null) totals[item.status] += 1; });
+  var html = '<div class="stats-grid">' +
+    '<div class="stat-widget"><div class="stat-widget-header"><span class="stat-widget-label">مدفوع</span><div class="stat-widget-icon ok">✓</div></div><div class="stat-widget-value">' + formatNumber(totals.paid) + '</div><div class="stat-widget-sub">اشتراك</div></div>' +
+    '<div class="stat-widget"><div class="stat-widget-header"><span class="stat-widget-label">جزئي</span><div class="stat-widget-icon wn">◐</div></div><div class="stat-widget-value">' + formatNumber(totals.partial) + '</div><div class="stat-widget-sub">يحتاج متابعة</div></div>' +
+    '<div class="stat-widget"><div class="stat-widget-header"><span class="stat-widget-label">متأخر</span><div class="stat-widget-icon er">!</div></div><div class="stat-widget-value">' + formatNumber(totals.overdue) + '</div><div class="stat-widget-sub">يتطلب تذكيرًا</div></div>' +
+    '<div class="stat-widget"><div class="stat-widget-header"><span class="stat-widget-label">الإجمالي المعروض</span><div class="stat-widget-icon">#</div></div><div class="stat-widget-value">' + formatNumber(filtered.length) + '</div><div class="stat-widget-sub">من أصل ' + formatNumber(remoteSubscriptions.length) + '</div></div>' +
+  '</div>';
+  html += '<div class="filter-card"><div class="filter-grid"><div class="field"><label for="subscriptionSearch">بحث في الاشتراكات</label><input id="subscriptionSearch" type="search" value="' + esc(subscriptionSearch) + '" placeholder="اسم الطالب أو الصف أو الشهر" onchange="subscriptionSearch=this.value;render()" onkeydown="if(event.key===\'Enter\'){subscriptionSearch=this.value;render();}"></div><div class="field"><label for="subscriptionStatus">حالة الاشتراك</label><select id="subscriptionStatus" onchange="subscriptionStatus=this.value;render()"><option value="all"' + (subscriptionStatus === 'all' ? ' selected' : '') + '>كل الحالات</option><option value="paid"' + (subscriptionStatus === 'paid' ? ' selected' : '') + '>مدفوع</option><option value="partial"' + (subscriptionStatus === 'partial' ? ' selected' : '') + '>جزئي</option><option value="pending"' + (subscriptionStatus === 'pending' ? ' selected' : '') + '>معلق</option><option value="overdue"' + (subscriptionStatus === 'overdue' ? ' selected' : '') + '>متأخر</option></select></div></div></div>';
+  html += '<div class="widget-card"><div class="widget-card-header"><h2 class="widget-card-title">تفاصيل الاشتراكات</h2><span class="chip-stat">' + formatNumber(filtered.length) + ' سجل</span></div><div class="widget-list">';
+  filtered.slice(0, 250).forEach(function(item) {
+    var student = item.student || {};
+    var group = item.group || {};
+    html += '<div class="schedule-card"><div class="schedule-info"><b>' + esc(student.name) + '</b><span>الصف: ' + esc(group.grade) + ' · الشهر: ' + esc(item.month) + ' · الاستحقاق: ' + esc(item.dueOn) + ' · المبلغ: ' + formatNumber(item.amount) + ' ج · الخصم: ' + formatNumber(item.discount) + ' ج</span></div><span class="chip-stat ' + (item.status === 'paid' ? 'ok' : item.status === 'overdue' ? 'er' : 'wn') + '">' + statusLabel(item.status) + '</span></div>';
+  });
+  container.innerHTML = html + '</div></div>';
+}
+
+function renderReportsView(titleElem, subElem, actionsElem, container) {
+  titleElem.textContent = 'تقارير السنتر';
+  subElem.textContent = 'ملخص تشغيلي للحضور والاشتراكات والموارد';
+  actionsElem.innerHTML = '<button class="btn btn-secondary btn-sm" onclick="loadOperationsFromApi()">تحديث التقارير</button><button class="btn btn-outline btn-sm" onclick="exportExcel()">تصدير Excel</button>';
+  var report = remoteReport || { counts: {}, attendance: {}, subscriptions: {}, revenue: {} };
+  var attendanceTotal = Object.keys(report.attendance).reduce(function(sum, key) { return sum + Number(report.attendance[key] || 0); }, 0);
+  var present = Number(report.attendance.PRESENT || 0);
+  var attendanceRate = attendanceTotal ? Math.round((present / attendanceTotal) * 100) : 0;
+  var html = '<div class="stats-grid">' +
+    '<div class="stat-widget"><div class="stat-widget-header"><span class="stat-widget-label">الطلاب</span><div class="stat-widget-icon">#</div></div><div class="stat-widget-value">' + formatNumber(report.counts.students || 0) + '</div><div class="stat-widget-sub">إجمالي الطلاب المسجلين</div></div>' +
+    '<div class="stat-widget"><div class="stat-widget-header"><span class="stat-widget-label">المدرسون</span><div class="stat-widget-icon">#</div></div><div class="stat-widget-value">' + formatNumber(report.counts.teachers || 0) + '</div><div class="stat-widget-sub">المدرسون النشطون</div></div>' +
+    '<div class="stat-widget"><div class="stat-widget-header"><span class="stat-widget-label">المجموعات</span><div class="stat-widget-icon">#</div></div><div class="stat-widget-value">' + formatNumber(report.counts.groups || 0) + '</div><div class="stat-widget-sub">المجموعات الدراسية</div></div>' +
+    '<div class="stat-widget"><div class="stat-widget-header"><span class="stat-widget-label">التحصيل الشهري</span><div class="stat-widget-icon ok">ج</div></div><div class="stat-widget-value">' + formatNumber(report.revenue.amount || 0) + ' <span style="font-size:14px;color:var(--tx-muted)">ج</span></div><div class="stat-widget-sub">الشهر ' + esc(report.month || '') + '</div></div>' +
+  '</div>';
+  html += '<div class="widgets-row"><div class="widget-card"><div class="widget-card-header"><h2 class="widget-card-title">الحضور</h2><span class="chip-stat">نسبة الحضور: ' + formatNumber(attendanceRate) + '%</span></div><div class="widget-list">' +
+    '<div class="schedule-card"><div class="schedule-info"><b>حاضر</b><span>' + formatNumber(report.attendance.PRESENT || 0) + ' سجل</span></div></div>' +
+    '<div class="schedule-card"><div class="schedule-info"><b>غائب</b><span>' + formatNumber(report.attendance.ABSENT || 0) + ' سجل</span></div></div>' +
+    '<div class="schedule-card"><div class="schedule-info"><b>متأخر أو بعذر</b><span>' + formatNumber((report.attendance.LATE || 0) + (report.attendance.EXCUSED || 0)) + ' سجل</span></div></div>' +
+  '</div></div><div class="widget-card"><div class="widget-card-header"><h2 class="widget-card-title">حالة الاشتراكات</h2></div><div class="widget-list">' +
+    ['paid', 'partial', 'pending', 'overdue'].map(function(status) { return '<div class="schedule-card"><div class="schedule-info"><b>' + statusLabel(status) + '</b><span>' + formatNumber(report.subscriptions[status] || 0) + ' اشتراك</span></div></div>'; }).join('') +
+  '</div></div></div>';
+  container.innerHTML = html;
+}
+
+/* 1. DASHBOARD VIEW (WIDGETS OVERVIEW) */
+function renderStudentDashboard(titleElem, subElem, actionsElem, container) {
+  titleElem.textContent = 'لوحة الطالب';
+  subElem.textContent = 'المعلومات الخاصة بتجربتك التعليمية';
+  actionsElem.innerHTML = '';
+  container.innerHTML = '<div class="widget-card"><div class="widget-card-header"><h2 class="widget-card-title">لوحة الطالب</h2></div>' +
+    '<div style="padding:8px 0;color:var(--tx-muted);line-height:1.9">من هنا هتتابع المحتوى والبيانات التي يشاركها السنتر معك. الصلاحيات الإدارية والبيانات الخاصة بالطلاب الآخرين غير متاحة لهذا الحساب.</div></div>' +
+    '<div class="stats-grid" style="margin-top:16px"><div class="stat-widget"><div class="stat-widget-header"><span class="stat-widget-label">نوع الحساب</span><div class="stat-widget-icon">👨‍🎓</div></div><div class="stat-widget-value" style="font-size:20px">طالب</div><div class="stat-widget-sub">وصول للوحة الطالب فقط</div></div></div>';
+}
+
+function renderParentDashboard(titleElem, subElem, actionsElem, container) {
+  titleElem.textContent = 'لوحة ولي الأمر';
+  subElem.textContent = 'متابعة الأبناء والمواعيد والحضور';
+  actionsElem.innerHTML = '';
+  container.innerHTML = '<div class="widget-card"><div class="widget-card-header"><h2 class="widget-card-title">لوحة ولي الأمر</h2></div>' +
+    '<div style="padding:8px 0;color:var(--tx-muted);line-height:1.9">ستظهر هنا بيانات الأبناء المرتبطين بهذا الحساب، مثل مواعيد الحصص والحضور وحالة الاشتراكات التي يسمح السنتر بعرضها.</div></div>' +
+    '<div class="stats-grid" style="margin-top:16px"><div class="stat-widget"><div class="stat-widget-header"><span class="stat-widget-label">نوع الحساب</span><div class="stat-widget-icon">👨‍👩‍👧</div></div><div class="stat-widget-value" style="font-size:20px">ولي أمر</div><div class="stat-widget-sub">بيانات الأبناء المرتبطين فقط</div></div></div>';
+}
+
+function renderWorkerDashboard(titleElem, subElem, actionsElem, container) {
+  titleElem.textContent = 'لوحة موظف السنتر';
+  subElem.textContent = 'إدارة الطلاب ومتابعة الحضور';
+  actionsElem.innerHTML = '<button class="btn btn-sm" onclick="openF(null, \'students\')">' + ic('add') + ' إضافة طالب</button>';
+  container.innerHTML = '<div class="widget-card"><div class="widget-card-header"><h2 class="widget-card-title">مهامك اليومية</h2><button class="btn btn-outline btn-sm" onclick="go(\'attendance\')">فتح الحضور</button></div>' +
+    '<div style="padding:8px 0;color:var(--tx-muted);line-height:1.9">يمكنك تسجيل الطلاب ومتابعة الحضور. إدارة المدرسين والمجموعات والاشتراكات والنسخ الاحتياطية متاحة لمدير السنتر فقط.</div></div>';
+}
+
+function renderTeacherDashboard(titleElem, subElem, actionsElem, container) {
+  titleElem.textContent = 'لوحة المدرس';
+  subElem.textContent = 'متابعة الحصص وتسجيل الحضور';
+  actionsElem.innerHTML = '';
+  var todayArabic = getArabicDayName();
+  var groupsToday = S.groups.filter(function(g) { return normalizeDays(g.days).indexOf(todayArabic) > -1; });
+  var html = '<div class="widget-card"><div class="widget-card-header"><h2 class="widget-card-title">حصص اليوم · ' + todayArabic + '</h2><button class="btn btn-sm" onclick="go(\'attendance\')">فتح الحضور</button></div><div class="widget-list">';
+  if (!groupsToday.length) html += '<div class="widget-empty"><p><b>لا توجد حصص اليوم</b><br>يمكنك فتح صفحة الحضور لمراجعة المجموعات.</p></div>';
+  groupsToday.forEach(function(g) {
+    html += '<div class="schedule-card"><div class="schedule-info"><b>' + gl(g) + '</b><span>⏰ ' + g.time + ' · 👥 ' + S.students.filter(function(s) { return (s.g || []).indexOf(g.id) > -1; }).length + ' طالب</span></div><button class="btn btn-outline btn-sm" onclick="go(\'attendance\',{t:' + g.t + ',g:' + g.id + '})">تسجيل الحضور</button></div>';
+  });
+  container.innerHTML = html + '</div></div><div class="notice-card" style="margin-top:16px">صلاحيات المدرس: عرض المجموعات وتسجيل الحضور فقط. إدارة الحسابات والاشتراكات متاحة لفريق السنتر.</div>';
+}
+
+function renderDashboardView(titleElem, subElem, actionsElem, container) {
+  if (currentRole === 'student') return renderStudentDashboard(titleElem, subElem, actionsElem, container);
+  if (currentRole === 'parent') return renderParentDashboard(titleElem, subElem, actionsElem, container);
+  if (currentRole === 'teacher') return renderTeacherDashboard(titleElem, subElem, actionsElem, container);
+  if (currentRole === 'worker') return renderWorkerDashboard(titleElem, subElem, actionsElem, container);
+  titleElem.textContent = 'لوحة التحكم والودجات';
+  subElem.textContent = 'إحصائيات السنتر، جدول حصص اليوم، ومتابعة سداد الاشتراكات';
+  
+  actionsElem.innerHTML = 
+    '<button class="btn btn-outline btn-sm" onclick="triggerImport()">' + ic('add') + ' استيراد JSON أو Excel</button>' +
+    '<button class="btn btn-sm" onclick="openF(null, \'students\')">' + ic('add') + ' إضافة طالب جديد</button>';
+
+  var todayArabic = getArabicDayName();
+  var todayDate = localDate();
+  var curMonth = todayDate.slice(0, 7);
+
+  var totalStudents = S.students.length;
+  var totalTeachers = S.teachers.length;
+  var totalGroups = S.groups.length;
+
+  var todayGroups = S.groups.filter(function(g) {
+    return normalizeDays(g.days).indexOf(todayArabic) > -1;
+  });
+
+  var totalExpectedRevenue = 0;
+  var totalCollectedRevenue = 0;
+  var paidCount = 0;
+  var unpaidCount = 0;
+  var unpaidList = [];
+
+  S.students.forEach(function(s) {
+    (s.g || []).forEach(function(gid) {
+      var g = by('groups', gid);
+      if (g) {
+        var price = g.price || 0;
+        totalExpectedRevenue += price;
+        var pk = s.id + '|' + g.id + '|' + curMonth;
+        if (S.pay[pk]) {
+          totalCollectedRevenue += price;
+          paidCount++;
+        } else {
+          unpaidCount++;
+          unpaidList.push({
+            student: s,
+            group: g,
+            price: price
+          });
+        }
+      }
+    });
+  });
+
+  var collectionRate = totalExpectedRevenue > 0 ? Math.round((totalCollectedRevenue / totalExpectedRevenue) * 100) : 100;
+
+  var todayAttPresent = 0;
+  var todayAttAbsent = 0;
+  Object.keys(S.att).forEach(function(k) {
+    if (k.endsWith('|' + todayDate)) {
+      var record = S.att[k] || {};
+      Object.keys(record).forEach(function(sid) {
+        if (record[sid] === 'p') todayAttPresent++;
+        else if (record[sid] === 'a') todayAttAbsent++;
+      });
+    }
+  });
+
+  var html = '';
+
+  // KPI STATS WIDGETS
+  html += '<div class="stats-grid">' +
+    '<div class="stat-widget">' +
+      '<div class="stat-widget-header">' +
+        '<span class="stat-widget-label">الطلاب المقيدون</span>' +
+        '<div class="stat-widget-icon">' + ic('stu') + '</div>' +
+      '</div>' +
+      '<div class="stat-widget-value">' + formatNumber(totalStudents) + ' <span style="font-size:14px;color:var(--tx-muted)">طالب</span></div>' +
+      '<div class="stat-widget-sub"><span>' + formatNumber(S.students.filter(function(s){return s.g && s.g.length>0;}).length) + ' مسجلون بمجموعات نشطة</span></div>' +
+    '</div>' +
+
+    '<div class="stat-widget">' +
+      '<div class="stat-widget-header">' +
+        '<span class="stat-widget-label">المدرسون والمجموعات</span>' +
+        '<div class="stat-widget-icon wn">' + ic('tea') + '</div>' +
+      '</div>' +
+      '<div class="stat-widget-value">' + formatNumber(totalTeachers) + ' <span style="font-size:14px;color:var(--tx-muted)">مدرس</span></div>' +
+      '<div class="stat-widget-sub"><span>' + formatNumber(totalGroups) + ' مجموعة دراسية نشطة</span></div>' +
+    '</div>' +
+
+    '<div class="stat-widget">' +
+      '<div class="stat-widget-header">' +
+        '<span class="stat-widget-label">حصص اليوم (' + todayArabic + ')</span>' +
+        '<div class="stat-widget-icon ok">' + ic('att') + '</div>' +
+      '</div>' +
+      '<div class="stat-widget-value">' + formatNumber(todayGroups.length) + ' <span style="font-size:14px;color:var(--tx-muted)">حصة</span></div>' +
+      '<div class="stat-widget-sub"><span>حضور مسجل: ' + formatNumber(todayAttPresent) + ' طالب</span></div>' +
+    '</div>' +
+
+    '<div class="stat-widget">' +
+      '<div class="stat-widget-header">' +
+        '<span class="stat-widget-label">تحصيل شهر ' + curMonth + '</span>' +
+        '<div class="stat-widget-icon ' + (collectionRate >= 75 ? 'ok' : 'wn') + '">' + ic('money') + '</div>' +
+      '</div>' +
+      '<div class="stat-widget-value">' + formatNumber(totalCollectedRevenue) + ' <span style="font-size:13px;color:var(--tx-muted)">من ' + formatNumber(totalExpectedRevenue) + ' ج</span></div>' +
+      '<div class="stat-widget-sub"><span>نسبة التحصيل: ' + collectionRate + '%</span></div>' +
+      '<div class="progress-bar-wrap"><div class="progress-bar-fill ' + (collectionRate >= 75 ? 'ok' : '') + '" style="width:' + collectionRate + '%"></div></div>' +
+    '</div>' +
+  '</div>';
+
+  // TWO COLUMN WIDGETS ROW
+  html += '<div class="widgets-row">' +
+    // WIDGET A: TODAY'S SCHEDULE
+    '<div class="widget-card">' +
+      '<div class="widget-card-header">' +
+        '<h3 class="widget-card-title">' + ic('att') + ' جدول حصص اليوم (' + todayArabic + ')</h3>' +
+        '<span class="chip-stat">' + todayGroups.length + ' حصص</span>' +
+      '</div>' +
+      '<div class="widget-list">';
+        if (!todayGroups.length) {
+          html += '<div class="widget-empty">' + ic('att') + '<p><b>لا توجد حصص مجدولة لليوم</b><br>استمتع بيومك أو اطلع على المجموعات الأخرى</p></div>';
+        } else {
+          todayGroups.forEach(function(g) {
+            var teacher = by('teachers', g.t);
+            var studentCount = S.students.filter(function(s){ return s.g && s.g.indexOf(g.id) > -1; }).length;
+            var attRecorded = !!(S.att[g.id + '|' + todayDate]);
+            html += '<div class="schedule-card">' +
+              '<div class="schedule-info">' +
+                '<b>' + g.grade + ' – ' + (teacher ? teacher.name + ' (' + teacher.subject + ')' : '') + '</b>' +
+                '<span>⏰ الميعاد: ' + g.time + ' · 👥 ' + studentCount + ' طالب · ' + (attRecorded ? '<span style="color:var(--ok)">تم تسجيل الحضور ✓</span>' : '<span style="color:var(--wn)">في انتظار التسجيل ⏳</span>') + '</span>' +
+              '</div>' +
+              '<button class="btn btn-sm" onclick="go(\'attendance\', { t: ' + g.t + ', g: ' + g.id + ' })">' +
+                'تسجيل الحضور' +
+              '</button>' +
+            '</div>';
+          });
+        }
+  html += '</div></div>' +
+
+    // WIDGET B: OVERDUE TUITION & WHATSAPP DISPATCH
+    '<div class="widget-card">' +
+      '<div class="widget-card-header">' +
+        '<h3 class="widget-card-title">' + ic('money') + ' اشتراكات معلقة لم تسدد</h3>' +
+        '<span class="chip-stat er">' + unpaidList.length + ' متأخر</span>' +
+      '</div>' +
+      '<div class="widget-list">';
+        if (!unpaidList.length) {
+          html += '<div class="widget-empty">' + ic('check') + '<p><b>رائع! لا توجد اشتراكات متأخرة</b><br>جميع الطلاب مسددون لاشتراك هذا الشهر</p></div>';
+        } else {
+          unpaidList.slice(0, 8).forEach(function(item) {
+            var teacher = by('teachers', item.group.t);
+            var parentPhone = item.student.parent || item.student.phone;
+            var reminderMsg = 'السلام عليكم ورحمة الله،\nولي أمر الطالب المحترم: ' + item.student.name + '،\nنود تذكيركم بلطف بسداد اشتراك سنتر ' + (teacher ? teacher.subject + ' (' + teacher.name + ')' : '') + ' لشهر ' + curMonth + ' بقيمة ' + item.price + ' جنيه.\nشاكرين ومقدرين حسن تعاونكم الدائم معنا.\nإدارة السنتر.';
+            var waHref = waUrl(parentPhone, reminderMsg);
+
+            html += '<div class="unpaid-card">' +
+              '<div class="unpaid-info">' +
+                '<b>' + item.student.name + '</b>' +
+                '<span>' + item.group.grade + ' · ' + (teacher ? teacher.name : '') + '</span>' +
+              '</div>' +
+              '<div style="display:flex;align-items:center;gap:6px">' +
+                '<span class="price-pill">' + item.price + ' ج</span>' +
+                (parentPhone ? '<a href="' + waHref + '" target="_blank" class="btn btn-wa btn-sm btn-icon" title="إرسال تذكير واتساب لولي الأمر">' + ic('wa') + '</a>' : '') +
+                '<button class="btn btn-secondary btn-sm" onclick="togglePay(' + item.student.id + ',' + item.group.id + ',\'' + curMonth + '\')" title="تسجيل الدفع فورا">✓ دفع</button>' +
+              '</div>' +
+            '</div>';
+          });
+          if (unpaidList.length > 8) {
+            html += '<div style="text-align:center;padding:6px;font-size:12px;color:var(--tx-muted)">والمزيد (' + (unpaidList.length - 8) + ' طالب آخرين)...</div>';
+          }
+        }
+  html += '</div></div></div>';
+
+  // QUICK ACTIONS WIDGET
+  html += '<div class="widget-card">' +
+    '<div class="widget-card-header">' +
+      '<h3 class="widget-card-title">' + ic('dash') + ' إجراءات سريعة وإدارة البيانات</h3>' +
+    '</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px">' +
+      '<button class="btn" onclick="openF(null, \'students\')">' + ic('add') + ' إضافة طالب</button>' +
+      '<button class="btn btn-secondary" onclick="openF(null, \'teachers\')">' + ic('add') + ' إضافة مدرس</button>' +
+      '<button class="btn btn-secondary" onclick="openF(null, \'groups\')">' + ic('add') + ' إضافة مجموعة</button>' +
+      '<button class="btn btn-outline" onclick="exportData()">' + ic('money') + ' حفظ نسخة JSON</button>' +
+      '<button class="btn btn-outline" onclick="exportExcel()">تصدير Excel</button>' +
+      '<button class="btn btn-outline" onclick="triggerImport()">' + ic('add') + ' استيراد JSON أو Excel</button>' +
+      '<button class="btn btn-outline" onclick="window.print()">' + ic('check') + ' طباعة تقرير السنتر</button>' +
+    '</div>' +
+  '</div>';
+
+  container.innerHTML = html;
+}
+
+/* 2. ATTENDANCE & SUBSCRIPTIONS VIEW */
+function renderAttendanceView(titleElem, subElem, actionsElem, container) {
+  titleElem.textContent = 'الحضور والاشتراكات';
+  subElem.textContent = 'تسجيل الحضور اليومي، وإدارة سداد الاشتراكات الشهرية، وإشعارات أولياء الأمور';
+
+  var allGs = S.groups.filter(function(g) { return g.t == sel.t; });
+  var grades = Array.from(new Set(allGs.map(function(g) { return g.grade; })));
+  if (grades.indexOf(sel.grade) < 0) sel.grade = grades[0] || '';
+  var gs = allGs.filter(function(g) { return g.grade == sel.grade; });
+  if (!gs.some(function(g) { return g.id == sel.g; })) sel.g = gs.length ? gs[0].id : 0;
+
+  var key = sel.g + '|' + sel.d;
+  if (drK !== key) {
+    dr = Object.assign({}, S.att[key] || {});
+    drK = key;
+  }
+
+  var currentGroup = by('groups', sel.g);
+  var st = S.students.filter(function(s) { return s.g && s.g.indexOf(sel.g) > -1; }).sort(function(a, b) { return az(a.name, b.name); });
+  var c = { p: 0, a: 0 };
+  var un = 0;
+  var paid = 0;
+  var payKey = sel.g + '|' + sel.m;
+
+  st.forEach(function(s) {
+    if (dr[s.id]) c[dr[s.id]]++;
+    else un++;
+    if (S.pay[s.id + '|' + payKey]) paid++;
+  });
+
+  var ids = '[' + st.map(function(s) { return s.id; }).join(',') + ']';
+
+  actionsElem.innerHTML = 
+    (currentGroup ? '<button class="btn btn-sm" onclick="openAddStudentToGroup(' + sel.g + ')">' + ic('add') + ' إضافة طالب لهذه المجموعة</button>' : '') +
+    (currentGroup && S.students.length ? '<button class="btn btn-outline btn-sm" onclick="openAssignStudentsModal(' + sel.g + ')">' + ic('stu') + ' تعيين طلاب</button>' : '') +
+    (st.length ? '<button class="btn btn-outline btn-sm" onclick="markAll(' + ids + ', \'p\')">' + ic('check') + ' تحديد الكل حاضر</button>' : '') +
+    (st.length ? '<button class="btn btn-secondary btn-sm" onclick="clearAllAttendance(' + ids + ')">مسح التسجيل</button>' : '') +
+    (currentGroup && st.length ? '<button class="btn btn-sm btn-wa" onclick="copyAttendanceSummary(by(\'groups\', ' + sel.g + '), \'' + sel.d + '\', S.students.filter(function(s){return s.g && s.g.indexOf(' + sel.g + ')>-1;}), dr)">' + ic('wa') + ' نسخ تقرير الحصة للواتساب</button>' : '');
+
+  var html = '';
+
+  // Calculate Past Sessions History
+  var history = Object.keys(S.att).filter(function(k) {
+    return k.indexOf(sel.g + '|') === 0;
+  }).map(function(k) {
+    var d = k.slice((sel.g + '|').length);
+    var m = S.att[k] || {};
+    return {
+      d: d,
+      p: st.filter(function(s) { return m[s.id] === 'p'; }).length,
+      a: st.filter(function(s) { return m[s.id] === 'a'; }).length
+    };
+  }).filter(function(x) {
+    return /^\d{4}-\d{2}-\d{2}$/.test(x.d);
+  }).sort(function(a, b) {
+    return b.d.localeCompare(a.d);
+  }).slice(0, 20);
+
+  // Build a complete Saturday-to-Friday list for the current week, then append older history.
+  var todayVal = localDate();
+  var weekDates = getCurrentWeekDates();
+  var historyByDate = {};
+  history.forEach(function(x) { historyByDate[x.d] = x; });
+  var shownDates = {};
+  var historyOptions = '';
+  weekDates.forEach(function(dateValue) {
+    var item = historyByDate[dateValue] || { d: dateValue, p: 0, a: 0 };
+    var label = dateValue === todayVal ? 'حصة اليوم' : 'حصة ' + getArabicDayName(dateValue);
+    historyOptions += '<option value="' + dateValue + '"' + (sel.d === dateValue ? ' selected' : '') + '>' +
+      label + ' (' + dateValue + ') · حاضر: ' + item.p + ' · غائب: ' + item.a + '</option>';
+    shownDates[dateValue] = true;
+  });
+  history.forEach(function(x) {
+    if (!shownDates[x.d]) {
+      historyOptions += '<option value="' + x.d + '"' + (sel.d === x.d ? ' selected' : '') + '>' +
+        x.d + ' (' + getArabicDayName(x.d) + ') · حاضر: ' + x.p + ' · غائب: ' + x.a + '</option>';
+    }
+  });
+
+  // FILTERS BAR (with History Drop List)
+  html += '<div class="filter-card"><div class="filter-grid">' +
+    '<div class="field"><label>١. المدرس</label><select onchange="sel.t=+this.value;sel.grade=\'\';sel.g=0;render()">' +
+      (S.teachers.map(function(t) { return '<option value="' + t.id + '"' + (t.id == sel.t ? ' selected' : '') + '>' + t.name + ' (' + t.subject + ')</option>'; }).join('') || '<option value="0">لا يوجد مدرسون</option>') +
+    '</select></div>' +
+
+    '<div class="field"><label>٢. الصف</label><select onchange="sel.grade=this.value;sel.g=0;render()">' +
+      (grades.map(function(gr) { return '<option value="' + gr + '"' + (gr == sel.grade ? ' selected' : '') + '>' + gr + '</option>'; }).join('') || '<option value="">لا توجد صفوف</option>') +
+    '</select></div>' +
+
+    '<div class="field"><label>٣. المجموعة</label><select onchange="sel.g=+this.value;render()">' +
+      (gs.map(function(g) { return '<option value="' + g.id + '"' + (g.id == sel.g ? ' selected' : '') + '>' + dayLabel(g) + ' · ' + g.time + '</option>'; }).join('') || '<option value="0">لا توجد مجموعات</option>') +
+    '</select></div>' +
+
+    '<div class="field"><label>سجل الحصص والتاريخ (History Drop List)</label>' +
+      '<select onchange="sel.d=this.value;render()">' +
+        historyOptions +
+      '</select>' +
+    '</div>' +
+
+    '<div class="field"><label>تاريخ مخصص</label><input type="date" value="' + sel.d + '" onchange="sel.d=this.value;render()"></div>' +
+    '<div class="field"><label>شهر الاشتراك</label><input type="month" value="' + sel.m + '" onchange="sel.m=this.value;render()"></div>' +
+  '</div></div>';
+
+  // HISTORY CAROUSEL WITH QUICK DROPDOWN
+  if (weekDates.length) {
+    html += '<div class="history-section">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:8px">' +
+        '<h3 style="margin:0;font-size:14px;font-weight:700;color:var(--tx-muted)">🗓️ حصص الأسبوع الحالي (السبت → الجمعة)</h3>' +
+        '<div style="display:flex;align-items:center;gap:8px">' +
+          '<label style="font-size:12px;color:var(--tx-muted)">قائمة السجل:</label>' +
+          '<select onchange="sel.d=this.value;render()" style="min-height:34px;padding:0 10px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface);color:var(--tx);font-size:13px">' +
+            historyOptions +
+          '</select>' +
+        '</div>' +
+      '</div>' +
+      '<div class="day-scroll">' +
+        weekDates.map(function(dateValue) {
+          var item = historyByDate[dateValue] || { p: 0, a: 0 };
+          var isSel = dateValue === sel.d;
+          return '<button class="day-btn ' + (isSel ? 'active' : '') + '" onclick="sel.d=\'' + dateValue + '\';render()">' +
+            '<b>' + (dateValue === todayVal ? 'اليوم' : getArabicDayName(dateValue)) + ' · ' + dateValue + '</b>' +
+            '<span>حاضر: ' + item.p + ' · غائب: ' + item.a + '</span>' +
+          '</button>';
+        }).join('') +
+      '</div>' +
+    '</div>';
+  }
+
+  // SUMMARY RIBBON
+  if (st.length) {
+    var attPct = (c.p + c.a) > 0 ? Math.round((c.p / (c.p + c.a)) * 100) : 0;
+    html += '<div class="summary-ribbon">' +
+      '<span class="chip-stat ok">حاضر: ' + c.p + '</span>' +
+      '<span class="chip-stat er">غائب: ' + c.a + '</span>' +
+    '<span class="chip-stat">لم يُسجل: ' + formatNumber(un) + '</span>' +
+      '<span class="chip-stat">نسبة الحضور: ' + attPct + '%</span>' +
+      (currentRole === 'center' ? '<span class="chip-stat ok">اشتراك مسدد: ' + formatNumber(paid) + '</span>' +
+      '<span class="chip-stat er">غير مسدد: ' + formatNumber(st.length - paid) + '</span>' : '') +
+    '</div>';
+  }
+
+  // STUDENTS LIST
+  if (!st.length) {
+    html += '<div class="widget-empty" style="padding:40px 20px;background:var(--surface);border:1px dashed var(--border);border-radius:var(--radius-lg);margin:20px 0">' +
+      '<div style="width:56px;height:56px;border-radius:50%;background:var(--pr-subtle);color:var(--pr);display:grid;place-items:center;margin:0 auto 16px">' + ic('stu') + '</div>' +
+      '<h3 style="margin:0 0 8px;font-size:18px;font-weight:700;color:var(--tx)">لا يوجد طلاب مسجلون في هذه المجموعة بعد</h3>' +
+      '<p style="margin:0 0 20px;color:var(--tx-muted);font-size:14px">أضف طالباً جديداً للمجموعة الآن أو اختر من الطلاب المسجلين بالسنتر</p>' +
+      '<div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">' +
+        (currentGroup ? '<button class="btn" onclick="openAddStudentToGroup(' + sel.g + ')">' + ic('add') + ' إضافة طالب جديد للمجموعة</button>' : '') +
+        (currentGroup && S.students.length ? '<button class="btn btn-outline" onclick="openAssignStudentsModal(' + sel.g + ')">' + ic('stu') + ' تعيين طلاب مسجلين للمجموعة</button>' : '') +
+      '</div>' +
+    '</div>';
+  } else {
+    html += '<div class="student-list">' +
+      st.map(function(s) {
+        var isPaid = !!S.pay[s.id + '|' + payKey];
+        var state = dr[s.id] || '';
+        var teacher = currentGroup ? by('teachers', currentGroup.t) : null;
+        
+        var parentPhone = s.parent || s.phone;
+        var absentMsg = 'السلام عليكم ورحمة الله،\nولي أمر الطالب المحترم: ' + s.name + '،\nنحيط سيادتكم علماً بغياب نجلكم عن حصة (' + (currentGroup ? currentGroup.grade + ' - ' + (teacher ? teacher.subject : '') : '') + ') اليوم ' + sel.d + '.\nنرجو التواصل للاطمئنان.\nإدارة السنتر.';
+        var absentWaLink = waUrl(parentPhone, absentMsg);
+
+        return '<div class="student-card">' +
+          '<div class="student-main">' +
+            '<div class="avatar">' + ini(s.name) + '</div>' +
+            '<div class="student-meta">' +
+              '<b>' + s.name + '</b>' +
+              '<span>ولي الأمر: ' + (s.parent || 'غير مسجل') + '</span>' +
+            '</div>' +
+          '</div>' +
+
+          '<div class="student-actions">' +
+            '<div class="attendance-toggle">' +
+              '<button type="button" id="b' + s.id + 'p" data-state="p" class="' + (state === 'p' ? 'active' : '') + '" onclick="mark(' + s.id + ', \'p\')">حاضر</button>' +
+              '<button type="button" id="b' + s.id + 'a" data-state="a" class="' + (state === 'a' ? 'active' : '') + '" onclick="mark(' + s.id + ', \'a\')">غائب</button>' +
+            '</div>' +
+
+            (state === 'a' && parentPhone ? '<a href="' + absentWaLink + '" target="_blank" class="btn btn-wa btn-sm" title="إخطار ولي الأمر بالغياب فوراً عبر واتساب">' + ic('wa') + ' إخطار الغياب</a>' : '') +
+
+            (currentRole === 'center' ? '<button type="button" class="btn-pay ' + (isPaid ? 'paid' : 'unpaid') + '" onclick="togglePay(' + s.id + ')">' +
+              (isPaid ? 'الاشتراك مسدد ✓' : 'تسجيل سداد (' + (currentGroup ? currentGroup.price : '') + ' ج)') +
+            '</button>' : '') +
+          '</div>' +
+        '</div>';
+      }).join('') +
+    '</div>';
+  }
+
+  container.innerHTML = html;
+}
+
+/* 3. STUDENTS VIEW */
+function renderStudentsView(titleElem, subElem, actionsElem, container) {
+  titleElem.textContent = 'إدارة الطلاب';
+  subElem.textContent = 'قائمة الطلاب المسجلين بالسنتر ومجموعاتهم وهواتف أولياء الأمور';
+
+  actionsElem.innerHTML = '<button class="btn btn-sm" onclick="openF(null, \'students\')">' + ic('add') + ' إضافة طالب جديد</button>';
+
+  var filtered = S.students.filter(function(s) {
+    if (!q) return true;
+    var matchName = s.name.toLowerCase().indexOf(q.toLowerCase()) > -1;
+    var matchPhone = (s.phone || '').indexOf(q) > -1;
+    var matchParent = (s.parent || '').indexOf(q) > -1;
+    return matchName || matchPhone || matchParent;
+  }).sort(function(a, b) {
+    return az(a.name, b.name);
+  });
+
+  var html = '';
+
+  // SEARCH BOX
+  html += '<div class="search-box">' +
+    ic('q') +
+    '<input type="search" id="studentSearchInput" placeholder="بحث بالاسم أو رقم هاتف الطالب أو رقم ولي الأمر..." value="' + q + '" oninput="q=this.value;render(\'studentSearchInput\')">' +
+  '</div>';
+
+  if (!filtered.length) {
+    html += '<div class="widget-empty">' + ic('stu') + '<p><b>' + (q ? 'لا توجد نتائج تطابق بحثك' : 'لا يوجد طلاب مسجلون بعد') + '</b><br>اضغط على زر الإضافة لإدخال بيانات الطلاب</p></div>';
+  } else {
+    html += '<div class="student-list">' +
+      filtered.map(function(s) {
+        var assignedGroups = (s.g || []).map(function(gid) { return by('groups', gid); }).filter(Boolean);
+        var pPhone = s.parent || '';
+        var sPhone = s.phone || '';
+
+        return '<div class="student-card">' +
+          '<div class="student-main">' +
+            '<div class="avatar">' + ini(s.name) + '</div>' +
+            '<div class="student-meta">' +
+              '<b>' + s.name + '</b>' +
+              '<div style="display:flex;gap:12px;margin-top:4px;flex-wrap:wrap;font-size:13px;color:var(--tx-muted)">' +
+                (sPhone ? '<a href="tel:' + sPhone + '" style="color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:4px">' + ic('phone') + ' الطالب: ' + sPhone + '</a>' : '') +
+                (pPhone ? '<a href="tel:' + pPhone + '" style="color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:4px">' + ic('phone') + ' ولي الأمر: ' + pPhone + '</a>' : '') +
+              '</div>' +
+              '<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">' +
+                (assignedGroups.length ? assignedGroups.map(function(g) {
+                  return '<span class="group-tag">' + gl(g) + ' (' + g.time + ')</span>';
+                }).join('') : '<span style="font-size:12px;color:var(--tx-dim)">غير مسجل بأي مجموعة</span>') +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+
+          '<div class="student-actions">' +
+            (pPhone ? '<a href="' + waUrl(pPhone, 'السلام عليكم ورحمة الله، بخصوص الطالب: ' + s.name) + '" target="_blank" class="btn btn-wa btn-sm btn-icon" title="محادثة واتساب مع ولي الأمر">' + ic('wa') + '</a>' : '') +
+            '<button class="btn btn-secondary btn-sm btn-icon" title="تعديل بيانات الطالب" onclick="openF(' + s.id + ', \'students\')">' + ic('ed') + '</button>' +
+            '<button class="btn btn-secondary btn-sm btn-icon" style="color:var(--er)" title="حذف الطالب" onclick="rm(' + s.id + ', \'students\')">' + ic('del') + '</button>' +
+          '</div>' +
+        '</div>';
+      }).join('') +
+    '</div>';
+  }
+
+  html += '<button class="fab" onclick="openF(null, \'students\')">' + ic('add') + ' إضافة طالب</button>';
+
+  container.innerHTML = html;
+}
+
+/* 4. TEACHERS & GROUPS VIEW */
+function renderTeachersView(titleElem, subElem, actionsElem, container) {
+  titleElem.textContent = 'المدرسون والمجموعات الدراسية';
+  subElem.textContent = 'إدارة بيانات هيئة التدريس وتوزيع المجموعات ومواعيد وأسعار الحصص';
+
+  actionsElem.innerHTML = 
+    '<button class="btn btn-secondary btn-sm" onclick="openF(null, \'teachers\')">' + ic('add') + ' إضافة مدرس</button>' +
+    '<button class="btn btn-sm" onclick="openF(null, \'groups\')">' + ic('add') + ' إضافة مجموعة جديدة</button>';
+
+  if (!S.teachers.some(function(t) { return t.id == dirTeacher; })) {
+    dirTeacher = S.teachers.length ? S.teachers[0].id : 0;
+  }
+  var teacher = by('teachers', dirTeacher);
+  var gs = S.groups.filter(function(g) { return g.t == dirTeacher; });
+
+  var html = '';
+
+  if (!teacher) {
+    html += '<div class="widget-empty">' + ic('tea') + '<p><b>لا يوجد مدرسون مسجلون بعد</b><br>أضف مدرساً لبدء إنشاء المجموعات الدراسية</p></div>' +
+      '<button class="fab" onclick="openF(null, \'teachers\')">' + ic('add') + ' إضافة مدرس</button>';
+  } else {
+    html += '<div class="filter-card">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px">' +
+        '<div class="field" style="min-width:240px">' +
+          '<label>المدرس الحالي المعروض</label>' +
+          '<select id="dirTeacher" onchange="dirTeacher=+this.value;render()">' +
+            S.teachers.map(function(t) { return '<option value="' + t.id + '"' + (t.id == dirTeacher ? ' selected' : '') + '>' + t.name + ' (' + t.subject + ')</option>'; }).join('') +
+          '</select>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:10px">' +
+          '<div style="font-size:14px;color:var(--tx-muted)">' +
+            '📞 ' + teacher.phone + ' · 📚 ' + teacher.subject +
+          '</div>' +
+          '<button class="btn btn-outline btn-sm" onclick="openF(' + teacher.id + ', \'teachers\')">' + ic('ed') + ' تعديل بيانات المدرس</button>' +
+          '<button class="btn btn-secondary btn-sm" style="color:var(--er)" onclick="rm(' + teacher.id + ', \'teachers\')">' + ic('del') + '</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+    html += '<div class="widget-card">' +
+      '<div class="widget-card-header">' +
+        '<h3 class="widget-card-title">' + ic('att') + ' مجموعات ' + teacher.name + ' (' + gs.length + ' مجموعات)</h3>' +
+        '<button class="btn btn-sm" onclick="openF(null, \'groups\')">' + ic('add') + ' إضافة مجموعة لهذا المدرس</button>' +
+      '</div>' +
+      '<div class="widget-list">';
+        if (!gs.length) {
+          html += '<div class="widget-empty">' + ic('att') + '<p><b>لا توجد مجموعات لهذا المدرس</b><br>أضف مجموعة وحدد الصف الدراسي والأيام والميعاد والسعر</p></div>';
+        } else {
+          gs.forEach(function(g) {
+            var enrolledCount = S.students.filter(function(s) { return s.g && s.g.indexOf(g.id) > -1; }).length;
+            html += '<div class="schedule-card">' +
+              '<div class="schedule-info">' +
+                '<b>' + g.grade + '</b>' +
+                '<span>الأيام: ' + dayLabel(g) + ' · الميعاد: ' + g.time + ' · السعر: ' + formatNumber(g.price) + ' ج/شهر · عدد الطلاب: ' + formatNumber(enrolledCount) + '</span>' +
+              '</div>' +
+              '<div style="display:flex;align-items:center;gap:8px">' +
+                '<button class="btn btn-outline btn-sm" onclick="go(\'attendance\', { t: ' + g.t + ', g: ' + g.id + ' })">عرض الحضور</button>' +
+                '<button class="btn btn-secondary btn-sm btn-icon" title="تعديل المجموعة" onclick="openF(' + g.id + ', \'groups\')">' + ic('ed') + '</button>' +
+                '<button class="btn btn-secondary btn-sm btn-icon" style="color:var(--er)" title="حذف المجموعة" onclick="rm(' + g.id + ', \'groups\')">' + ic('del') + '</button>' +
+              '</div>' +
+            '</div>';
+          });
+        }
+    html += '</div></div>';
+  }
+
+  container.innerHTML = html;
+}
+
+/* INITIALIZATION */
+restore();
+S.groups.forEach(function(g) { g.days = normalizeDays(g.days); });
+initTheme();
+currentRole = null;
+showRoleGate();
+renderNav();
+render();
+apiRequest('/api/auth/me')
+  .then(function(result) {
+    currentUser = result.user;
+    var role = roleForBackendUser(currentUser);
+    if (role) selectRole(role);
+  })
+  .catch(function() { setAuthStatus('سجّل الدخول للمتابعة', false); });
+
+</script>
+</body>
+</html>
