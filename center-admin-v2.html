@@ -154,35 +154,273 @@ body {
 }
 
 /* ==========================================================================
-   ROLE GATE / LOGIN SCREEN (Fintech Glassmorphic Card)
+   ROLE GATE / APPLE SCROLL-DRIVEN VIDEO SCRUBBING EXPERIENCE
    ========================================================================== */
 .role-gate {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  background: radial-gradient(circle at 50% 20%, rgba(99, 102, 241, 0.18), transparent 70%), var(--bg-base);
-  backdrop-filter: blur(16px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #04060a;
+  color: #f1f5f9;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(99, 102, 241, 0.4) transparent;
   transition: opacity var(--transition-normal);
 }
 .role-gate[hidden] {
   display: none !important;
 }
 
+/* Apple Frosted Glass Top Navigation Bar */
+.apple-scroll-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  z-index: 1050;
+  background: rgba(4, 6, 10, 0.75);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 24px;
+}
+.apple-nav-inner {
+  width: 100%;
+  max-width: 1200px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.apple-nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+.apple-nav-brand svg {
+  width: 24px;
+  height: 24px;
+  color: var(--pr);
+}
+.apple-brand-name {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.2px;
+}
+.apple-brand-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: rgba(99, 102, 241, 0.2);
+  color: #818cf8;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  font-weight: 600;
+}
+.apple-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+@media (max-width: 768px) {
+  .apple-nav-links { display: none; }
+}
+.apple-link-btn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+  padding: 6px 10px;
+}
+.apple-link-btn:hover {
+  color: #fff;
+}
+.apple-cta-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 18px;
+  border-radius: var(--radius-full);
+  background: #fff;
+  color: #000;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  border: none;
+  cursor: pointer;
+  transition: transform var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
+}
+.apple-cta-btn:hover {
+  background: #e2e8f0;
+  transform: scale(1.03);
+  box-shadow: 0 4px 16px rgba(255, 255, 255, 0.25);
+}
+.apple-cta-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Apple Scroll Runway (420vh long for smooth scrubbing) */
+.apple-scroll-runway {
+  height: 420vh;
+  position: relative;
+}
+.apple-sticky-stage {
+  position: sticky;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.apple-video-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
+}
+
+/* Dynamic Apple Story Narrative Overlay */
+.apple-story-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0 8vw;
+}
+.apple-story-slide {
+  max-width: 580px;
+  position: absolute;
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+.apple-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 14px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-size: 12px;
+  font-weight: 600;
+  color: #cbd5e1;
+  margin-bottom: 16px;
+}
+.apple-story-title {
+  font-size: clamp(28px, 4.4vw, 50px);
+  font-weight: 800;
+  line-height: 1.2;
+  margin: 0 0 16px;
+  letter-spacing: -0.8px;
+  color: #fff;
+}
+.gradient-text {
+  background: linear-gradient(135deg, #818cf8 0%, #c084fc 50%, #38bdf8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.apple-story-desc {
+  font-size: clamp(14px, 1.4vw, 17px);
+  color: #94a3b8;
+  line-height: 1.65;
+  margin: 0;
+}
+
+/* Apple Scroll Hint */
+.apple-scroll-hint {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+.apple-mouse-icon {
+  width: 22px;
+  height: 36px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-radius: 12px;
+  display: flex;
+  justify-content: center;
+  padding-top: 6px;
+}
+.apple-wheel-dot {
+  width: 4px;
+  height: 7px;
+  background: #fff;
+  border-radius: 2px;
+  animation: mouseScroll 1.8s infinite;
+}
+@keyframes mouseScroll {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(12px); opacity: 0; }
+}
+.apple-hint-text {
+  font-size: 11.5px;
+  color: #64748b;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+.apple-hint-progress {
+  width: 140px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.apple-hint-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #6366f1, #a855f7);
+  transition: width 0.1s linear;
+}
+
+/* The Glassmorphic Login Card pinned inside stage */
 .role-gate-card {
+  position: relative;
+  z-index: 10;
   width: 100%;
   max-width: 480px;
-  background: var(--bg-glass);
-  backdrop-filter: blur(30px) saturate(190%);
-  border: 1px solid var(--border);
+  background: rgba(15, 23, 42, 0.82);
+  backdrop-filter: blur(40px) saturate(210%);
+  -webkit-backdrop-filter: blur(40px) saturate(210%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg), var(--shadow-glow);
+  box-shadow: 0 32px 64px -12px rgba(0, 0, 0, 0.85), 0 0 50px rgba(99, 102, 241, 0.28);
   padding: 36px 32px;
   text-align: center;
-  animation: slideUp 0.45s var(--transition-spring);
+  margin: auto;
+  opacity: 0;
+  transform: translateY(60px) scale(0.92);
+  pointer-events: none;
+  transition: opacity 0.4s var(--transition-spring), transform 0.4s var(--transition-spring);
+}
+.role-gate-card.active {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: all;
 }
 
 @keyframes slideUp {
@@ -1315,62 +1553,126 @@ dialog.custom-modal::backdrop {
   <div class="bg-aurora-blob bg-aurora-blob-2"></div>
 </div>
 
-<!-- ROLE GATE / AUTHENTICATION MODAL -->
+<!-- ROLE GATE / APPLE SCROLL-DRIVEN VIDEO SCRUBBING EXPERIENCE -->
 <section class="role-gate" id="roleGate">
-  <div class="role-gate-card">
-    <div class="role-gate-mark">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+  <!-- Apple Frosted Glass Top Navigation Bar -->
+  <header class="apple-scroll-nav">
+    <div class="apple-nav-inner">
+      <div class="apple-nav-brand" onclick="AppleVideoEngine.scrollToStep(0)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        <span class="apple-brand-name">منصة السنتر التعليمية</span>
+        <span class="apple-brand-badge">Fintech 2.5</span>
+      </div>
+      <nav class="apple-nav-links">
+        <button type="button" class="apple-link-btn" onclick="AppleVideoEngine.scrollToStep(0)">نظرة عامة</button>
+        <button type="button" class="apple-link-btn" onclick="AppleVideoEngine.scrollToStep(0.35)">المسح الذكي</button>
+        <button type="button" class="apple-link-btn" onclick="AppleVideoEngine.scrollToStep(0.68)">المالية والاشتراكات</button>
+      </nav>
+      <div class="apple-nav-cta">
+        <button type="button" class="apple-cta-btn" onclick="AppleVideoEngine.scrollToStep(1)">
+          <span>تسجيل الدخول</span>
+          <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+        </button>
+      </div>
     </div>
-    <h1>منصة السنتر التعليمية الذكية</h1>
-    <p>بوابة متكاملة لإدارة المراكز التعليمية بأسلوب فينتك عصري وفائق السرعة</p>
+  </header>
 
-    <form class="auth-form" id="authForm" onsubmit="return handleLogin(event)">
-      <div class="field">
-        <label for="loginEmail">البريد الإلكتروني</label>
-        <input id="loginEmail" name="email" type="email" required placeholder="owner@example.local" dir="ltr">
-      </div>
-      <div class="field">
-        <label for="loginPassword">كلمة المرور</label>
-        <input id="loginPassword" name="password" type="password" required placeholder="••••••••" dir="ltr">
-      </div>
-      <div class="field" id="mfaField" style="display:none">
-        <label for="loginMfa">رمز التحقق المؤقت (MFA)</label>
-        <input id="loginMfa" name="mfaCode" type="text" pattern="[0-9]{6}" maxlength="6" placeholder="000000" dir="ltr">
-      </div>
-      <button class="btn btn-block" id="loginBtn" type="submit">تسجيل الدخول للمنصة</button>
-      <p class="auth-status" id="authStatus"></p>
-    </form>
+  <!-- Apple Scroll Runway (420vh long) -->
+  <div class="apple-scroll-runway" id="appleScrollRunway">
+    <!-- Pinned 100vh Sticky Stage -->
+    <div class="apple-sticky-stage" id="appleStickyStage">
+      <!-- 60FPS Video Scrubbing Canvas -->
+      <canvas id="appleVideoCanvas" class="apple-video-canvas"></canvas>
 
-    <div class="quick-accounts-title">حسابات التجربة السريعة (Seed Accounts)</div>
-    <div class="quick-accounts-grid">
-      <button class="quick-acc-btn" type="button" onclick="fillQuickLogin('owner@example.local', 'ChangeMe123!')">
-        <span class="icon">👑</span>
-        <div class="info">
-          <span class="title">مدير السنتر</span>
-          <span class="sub">owner@example.local</span>
+      <!-- Apple Narrative Slides Overlay -->
+      <div class="apple-story-overlay" id="appleStoryOverlay">
+        <div class="apple-story-slide" id="storySlide0">
+          <div class="apple-badge-pill">الجيل القادم • Next-Gen Platform</div>
+          <h1 class="apple-story-title">قوة الآبل. وسرعة الفينتك.<br><span class="gradient-text">في قلب مركزك التعليمي.</span></h1>
+          <p class="apple-story-desc">تصميم فائق الدقة وهندسة برمجية متقدمة للمراكز التعليمية، تمكّن الإداريين والمدرسين والطلاب من إدارة العمليات اللحظية بلمسة واحدة.</p>
         </div>
-      </button>
-      <button class="quick-acc-btn" type="button" onclick="fillQuickLogin('teacher1@demo.local', 'ChangeMe123!')">
-        <span class="icon">👨‍🏫</span>
-        <div class="info">
-          <span class="title">المدرس</span>
-          <span class="sub">teacher1@demo.local</span>
+
+        <div class="apple-story-slide" id="storySlide1" style="opacity: 0; pointer-events: none;">
+          <div class="apple-badge-pill">حضور فوري • Instant Attendance</div>
+          <h1 class="apple-story-title">مسح ليزري ذكي بالباركود.<br><span class="gradient-text">حضور في أجزاء من الثانية.</span></h1>
+          <p class="apple-story-desc">ماسح Kiosk فائق السرعة يدعم الباركود والـ QR، يقرأ بطاقة الطالب، يخصم الحصة، ويرسل إشعاراً فورياً لوالد الطالب عبر واتساب دون أي تأخير.</p>
         </div>
-      </button>
-      <button class="quick-acc-btn" type="button" onclick="fillQuickLogin('student1@demo.local', 'ChangeMe123!')">
-        <span class="icon">🎓</span>
-        <div class="info">
-          <span class="title">الطالب</span>
-          <span class="sub">student1@demo.local</span>
+
+        <div class="apple-story-slide" id="storySlide2" style="opacity: 0; pointer-events: none;">
+          <div class="apple-badge-pill">إدارة مالية واشتراكات • Fintech Engine</div>
+          <h1 class="apple-story-title">اشتراكات، فواتير إلكترونية،<br><span class="gradient-text">وربط فوري مع InstaPay.</span></h1>
+          <p class="apple-story-desc">دفاتر مالية مشفرة وغير قابلة للتلاعب، حساب عمولات ومستحقات المدرسين بدقة السنتيمتر المالي، وتقارير أرباح لحظية قابلة للتصدير.</p>
         </div>
-      </button>
-      <button class="quick-acc-btn" type="button" onclick="fillQuickLogin('parent1@demo.local', 'ChangeMe123!')">
-        <span class="icon">👨‍👩‍👧</span>
-        <div class="info">
-          <span class="title">ولي الأمر</span>
-          <span class="sub">parent1@demo.local</span>
+      </div>
+
+      <!-- Apple Scroll Hint -->
+      <div class="apple-scroll-hint" id="appleScrollHint">
+        <div class="apple-mouse-icon">
+          <div class="apple-wheel-dot"></div>
         </div>
-      </button>
+        <div class="apple-hint-text">مرر للأسفل لاكتشاف المنصة • Scroll to explore</div>
+        <div class="apple-hint-progress">
+          <div class="apple-hint-progress-bar" id="appleProgressBar"></div>
+        </div>
+      </div>
+
+      <!-- Fintech Glassmorphic Login Card (Docks in spotlight at 100% scroll) -->
+      <div class="role-gate-card apple-login-card" id="appleLoginCard">
+        <div class="role-gate-mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        </div>
+        <h1>تسجيل الدخول للمنصة</h1>
+        <p>بوابة متكاملة لإدارة المراكز التعليمية بأسلوب فينتك عصري وفائق السرعة</p>
+
+        <form class="auth-form" id="authForm" onsubmit="return handleLogin(event)">
+          <div class="field">
+            <label for="loginEmail">البريد الإلكتروني</label>
+            <input id="loginEmail" name="email" type="email" required placeholder="owner@example.local" dir="ltr">
+          </div>
+          <div class="field">
+            <label for="loginPassword">كلمة المرور</label>
+            <input id="loginPassword" name="password" type="password" required placeholder="••••••••" dir="ltr">
+          </div>
+          <div class="field" id="mfaField" style="display:none">
+            <label for="loginMfa">رمز التحقق المؤقت (MFA)</label>
+            <input id="loginMfa" name="mfaCode" type="text" pattern="[0-9]{6}" maxlength="6" placeholder="000000" dir="ltr">
+          </div>
+          <button class="btn btn-block" id="loginBtn" type="submit">تسجيل الدخول الآن</button>
+          <p class="auth-status" id="authStatus"></p>
+        </form>
+
+        <div class="quick-accounts-title">حسابات التجربة السريعة (Seed Accounts)</div>
+        <div class="quick-accounts-grid">
+          <button class="quick-acc-btn" type="button" onclick="fillQuickLogin('owner@example.local', 'ChangeMe123!')">
+            <span class="icon">👑</span>
+            <div class="info">
+              <span class="title">مدير السنتر</span>
+              <span class="sub">owner@example.local</span>
+            </div>
+          </button>
+          <button class="quick-acc-btn" type="button" onclick="fillQuickLogin('teacher1@demo.local', 'ChangeMe123!')">
+            <span class="icon">👨‍🏫</span>
+            <div class="info">
+              <span class="title">المدرس</span>
+              <span class="sub">teacher1@demo.local</span>
+            </div>
+          </button>
+          <button class="quick-acc-btn" type="button" onclick="fillQuickLogin('student1@demo.local', 'ChangeMe123!')">
+            <span class="icon">🎓</span>
+            <div class="info">
+              <span class="title">الطالب</span>
+              <span class="sub">student1@demo.local</span>
+            </div>
+          </button>
+          <button class="quick-acc-btn" type="button" onclick="fillQuickLogin('parent1@demo.local', 'ChangeMe123!')">
+            <span class="icon">👨‍👩‍👧</span>
+            <div class="info">
+              <span class="title">ولي الأمر</span>
+              <span class="sub">parent1@demo.local</span>
+            </div>
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -3295,8 +3597,552 @@ function initTheme() {
 /* ==========================================================================
    INITIALIZATION ON LOAD
    ========================================================================== */
+
+/* ==========================================================================
+   APPLE SCROLL-DRIVEN VIDEO SCRUBBING ENGINE
+   ========================================================================== */
+var AppleVideoEngine = (function() {
+  var TOTAL_FRAMES = 72;
+  var frames = [];
+  var canvas, ctx;
+  var runway, loginCard, progressFill, hintEl;
+  var currentProgress = 0;
+  var targetProgress = 0;
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+  function init() {
+    canvas = document.getElementById('appleVideoCanvas');
+    if (!canvas) return;
+    ctx = canvas.getContext('2d');
+    runway = document.getElementById('roleGate');
+    loginCard = document.getElementById('appleLoginCard');
+    progressFill = document.getElementById('appleProgressBar');
+    hintEl = document.getElementById('appleScrollHint');
+
+    resizeCanvas();
+    window.addEventListener('resize', onResize);
+    if (runway) {
+      runway.addEventListener('scroll', onScroll, { passive: true });
+    }
+
+    // Pre-generate cinematic 3D frames
+    generateFrames();
+    
+    // Start 60fps render loop
+    requestAnimationFrame(renderLoop);
+  }
+
+  function onResize() {
+    resizeCanvas();
+    drawFrame(currentProgress);
+  }
+
+  function resizeCanvas() {
+    if (!canvas) return;
+    var w = window.innerWidth;
+    var h = window.innerHeight;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+  }
+
+  function onScroll() {
+    if (!runway) return;
+    var maxScroll = runway.scrollHeight - runway.clientHeight;
+    if (maxScroll <= 0) return;
+    targetProgress = Math.max(0, Math.min(1, runway.scrollTop / maxScroll));
+  }
+
+  function scrollToStep(fraction) {
+    if (!runway) return;
+    var maxScroll = runway.scrollHeight - runway.clientHeight;
+    runway.scrollTo({
+      top: maxScroll * fraction,
+      behavior: 'smooth'
+    });
+  }
+
+  function generateFrames() {
+    var fw = 960 * dpr;
+    var fh = 600 * dpr;
+    frames = [];
+
+    for (var i = 0; i < TOTAL_FRAMES; i++) {
+      var progress = i / (TOTAL_FRAMES - 1);
+      var offCanvas = document.createElement('canvas');
+      offCanvas.width = fw;
+      offCanvas.height = fh;
+      var octx = offCanvas.getContext('2d');
+      renderSingleFrame(octx, fw, fh, progress);
+      frames.push(offCanvas);
+    }
+  }
+
+  function renderSingleFrame(c, w, h, p) {
+    c.clearRect(0, 0, w, h);
+    var cx = w / 2;
+    var cy = h / 2;
+
+    var scale, yOff, tiltX, tiltY, laserAlpha, laserYProgress, cardFly, bloom;
+
+    if (p < 0.28) {
+      var t = p / 0.28;
+      scale = 0.72 + t * 0.28;
+      yOff = (1 - t) * (h * 0.22);
+      tiltX = 18 - t * 8;
+      tiltY = -28 + t * 14;
+      laserAlpha = 0;
+      laserYProgress = 0;
+      cardFly = 0;
+      bloom = 0.5 + t * 0.5;
+    } else if (p < 0.58) {
+      var t = (p - 0.28) / 0.30;
+      scale = 1.0 + Math.sin(t * Math.PI) * 0.06;
+      yOff = 0;
+      tiltX = 10 * (1 - t);
+      tiltY = -14 * (1 - t);
+      laserAlpha = Math.sin(t * Math.PI);
+      laserYProgress = t;
+      cardFly = 0;
+      bloom = 1.0;
+    } else if (p < 0.82) {
+      var t = (p - 0.58) / 0.24;
+      scale = 1.0 - t * 0.05;
+      yOff = t * (h * 0.04);
+      tiltX = t * 6;
+      tiltY = t * 12;
+      laserAlpha = Math.max(0, 1 - t * 3);
+      laserYProgress = 1;
+      cardFly = t;
+      bloom = 1.0 - t * 0.2;
+    } else {
+      var t = (p - 0.82) / 0.18;
+      scale = 0.95 - t * 0.12;
+      yOff = h * 0.04 + t * (h * 0.08);
+      tiltX = 6;
+      tiltY = 12;
+      laserAlpha = 0;
+      laserYProgress = 1;
+      cardFly = 1;
+      bloom = 0.6;
+    }
+
+    // 1. Ambient Backdrop Glow
+    var auraGrad = c.createRadialGradient(cx, cy + yOff, 40, cx, cy + yOff, w * 0.6);
+    auraGrad.addColorStop(0, 'rgba(99, 102, 241, ' + (0.28 * bloom) + ')');
+    auraGrad.addColorStop(0.4, 'rgba(168, 85, 247, ' + (0.15 * bloom) + ')');
+    auraGrad.addColorStop(0.8, 'rgba(14, 165, 233, ' + (0.05 * bloom) + ')');
+    auraGrad.addColorStop(1, 'transparent');
+    c.fillStyle = auraGrad;
+    c.fillRect(0, 0, w, h);
+
+    // 2. Perspective Ground Grid
+    drawPerspectiveGrid(c, cx, cy + yOff, w, h);
+
+    // 3. 3D Terminal Chassis
+    c.save();
+    c.translate(cx, cy + yOff);
+    c.scale(scale, scale);
+    
+    var radX = (tiltX * Math.PI) / 180;
+    var radY = (tiltY * Math.PI) / 180;
+    c.transform(1, Math.sin(radY) * 0.25, Math.sin(radX) * 0.15, 1, 0, 0);
+
+    var devW = w * 0.62;
+    var devH = h * 0.60;
+    var devR = 26 * dpr;
+
+    c.shadowColor = 'rgba(0, 0, 0, 0.7)';
+    c.shadowBlur = 45 * dpr;
+    c.shadowOffsetY = 28 * dpr;
+
+    c.beginPath();
+    roundRect(c, -devW/2, -devH/2, devW, devH, devR);
+    c.fillStyle = '#080c14';
+    c.fill();
+    c.shadowColor = 'transparent';
+
+    var borderGrad = c.createLinearGradient(-devW/2, -devH/2, devW/2, devH/2);
+    borderGrad.addColorStop(0, 'rgba(255, 255, 255, 0.45)');
+    borderGrad.addColorStop(0.3, 'rgba(148, 163, 184, 0.25)');
+    borderGrad.addColorStop(0.7, 'rgba(99, 102, 241, 0.4)');
+    borderGrad.addColorStop(1, 'rgba(255, 255, 255, 0.15)');
+    c.lineWidth = 3.5 * dpr;
+    c.strokeStyle = borderGrad;
+    c.stroke();
+
+    var scrPadding = 12 * dpr;
+    var scrW = devW - scrPadding * 2;
+    var scrH = devH - scrPadding * 2;
+    var scrR = devR - 6 * dpr;
+
+    c.save();
+    c.beginPath();
+    roundRect(c, -scrW/2, -scrH/2, scrW, scrH, scrR);
+    c.clip();
+
+    var scrGrad = c.createLinearGradient(0, -scrH/2, 0, scrH/2);
+    scrGrad.addColorStop(0, '#0a0e17');
+    scrGrad.addColorStop(1, '#05070c');
+    c.fillStyle = scrGrad;
+    c.fill();
+
+    drawScreenInterface(c, scrW, scrH, dpr);
+
+    if (laserAlpha > 0.01) {
+      drawLaserSweep(c, scrW, scrH, dpr, laserAlpha, laserYProgress);
+    }
+
+    var sheenGrad = c.createLinearGradient(-scrW/2 + (p * scrW * 1.5), -scrH/2, -scrW/4 + (p * scrW * 1.5), scrH/2);
+    sheenGrad.addColorStop(0, 'transparent');
+    sheenGrad.addColorStop(0.45, 'rgba(255, 255, 255, 0.08)');
+    sheenGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.18)');
+    sheenGrad.addColorStop(0.55, 'rgba(255, 255, 255, 0.08)');
+    sheenGrad.addColorStop(1, 'transparent');
+    c.fillStyle = sheenGrad;
+    c.fillRect(-scrW/2, -scrH/2, scrW, scrH);
+
+    c.restore();
+    c.restore();
+
+    // 4. Apple Wallet Pass (Phase 3)
+    if (cardFly > 0.01) {
+      drawAppleWalletPass(c, cx, cy + yOff, w, h, dpr, cardFly, p);
+    }
+  }
+
+  function drawPerspectiveGrid(c, cx, cy, w, h) {
+    c.save();
+    c.strokeStyle = 'rgba(99, 102, 241, 0.06)';
+    c.lineWidth = 1;
+    var horizon = cy + h * 0.15;
+    for (var i = -8; i <= 8; i++) {
+      c.beginPath();
+      c.moveTo(cx + i * (w * 0.035), horizon);
+      c.lineTo(cx + i * (w * 0.16), h);
+      c.stroke();
+    }
+    for (var j = 1; j <= 5; j++) {
+      var y = horizon + (h - horizon) * Math.pow(j / 5, 2);
+      c.beginPath();
+      c.moveTo(0, y);
+      c.lineTo(w, y);
+      c.stroke();
+    }
+    c.restore();
+  }
+
+  function drawScreenInterface(c, w, h, dpr) {
+    c.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    c.font = (11 * dpr) + 'px -apple-system, system-ui';
+    c.textAlign = 'right';
+    c.fillText('09:41', -w/2 + 40 * dpr, -h/2 + 24 * dpr);
+    c.textAlign = 'center';
+    c.fillText('EDUSYSTEM 2.5 • ENTERPRISE CORE', 0, -h/2 + 24 * dpr);
+
+    var cardW = w * 0.28;
+    var cardH = h * 0.22;
+    var startY = -h/2 + 48 * dpr;
+
+    drawMiniStat(c, -w/2 + 20 * dpr, startY, cardW, cardH, dpr, '125 طالب نشط', 'الطلاب المسجلين', '#818cf8');
+    drawMiniStat(c, -w/2 + 20 * dpr, startY + cardH + 10 * dpr, cardW, cardH, dpr, '98.4%', 'نسبة الحضور اليوم', '#34d399');
+    drawMiniStat(c, -w/2 + 20 * dpr, startY + (cardH + 10 * dpr) * 2, cardW, cardH, dpr, '32,450 EGP', 'التحصيلات النقدية', '#c084fc');
+
+    var schedX = -w/2 + cardW + 36 * dpr;
+    var schedW = w - (cardW + 56 * dpr);
+    var schedH = h - 68 * dpr;
+
+    c.fillStyle = 'rgba(255, 255, 255, 0.04)';
+    c.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    c.lineWidth = 1;
+    c.beginPath();
+    roundRect(c, schedX, startY, schedW, schedH, 16 * dpr);
+    c.fill();
+    c.stroke();
+
+    c.fillStyle = '#fff';
+    c.font = 'bold ' + (14 * dpr) + 'px -apple-system, Cairo';
+    c.textAlign = 'right';
+    c.fillText('الجدول الدراسي اللحظي • المحاضرات الجارية الآن', schedX + schedW - 16 * dpr, startY + 28 * dpr);
+
+    drawLiveSessionRow(c, schedX + 16 * dpr, startY + 48 * dpr, schedW - 32 * dpr, 46 * dpr, dpr, 'الفيزياء - م. أحمد شريف', 'قاعة نيوتن (A1)', '04:00 م - 06:00 م', '#10b981', 'جارية الآن');
+    drawLiveSessionRow(c, schedX + 16 * dpr, startY + 104 * dpr, schedW - 32 * dpr, 46 * dpr, dpr, 'الكيمياء - أ. سارة محمود', 'قاعة الخوارزمي (B2)', '06:30 م - 08:30 م', '#6366f1', 'القادمة');
+    drawLiveSessionRow(c, schedX + 16 * dpr, startY + 160 * dpr, schedW - 32 * dpr, 46 * dpr, dpr, 'الرياضيات - د. طارق سالم', 'قاعة ابن الهيثم (C1)', '08:45 م - 10:45 م', '#a855f7', 'مسائية');
+  }
+
+  function drawMiniStat(c, x, y, w, h, dpr, val, label, color) {
+    c.fillStyle = 'rgba(255, 255, 255, 0.035)';
+    c.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    c.lineWidth = 1;
+    c.beginPath();
+    roundRect(c, x, y, w, h, 12 * dpr);
+    c.fill();
+    c.stroke();
+
+    c.fillStyle = color;
+    c.font = 'bold ' + (15 * dpr) + 'px Inter, -apple-system';
+    c.textAlign = 'right';
+    c.fillText(val, x + w - 12 * dpr, y + 24 * dpr);
+
+    c.fillStyle = '#94a3b8';
+    c.font = (11 * dpr) + 'px -apple-system, Cairo';
+    c.fillText(label, x + w - 12 * dpr, y + 44 * dpr);
+  }
+
+  function drawLiveSessionRow(c, x, y, w, h, dpr, title, room, time, color, status) {
+    c.fillStyle = 'rgba(255, 255, 255, 0.025)';
+    c.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+    c.lineWidth = 1;
+    c.beginPath();
+    roundRect(c, x, y, w, h, 10 * dpr);
+    c.fill();
+    c.stroke();
+
+    c.fillStyle = color;
+    c.beginPath();
+    c.arc(x + 16 * dpr, y + h/2, 4 * dpr, 0, Math.PI * 2);
+    c.fill();
+
+    c.fillStyle = '#fff';
+    c.font = 'bold ' + (12 * dpr) + 'px -apple-system, Cairo';
+    c.textAlign = 'right';
+    c.fillText(title, x + w - 14 * dpr, y + 22 * dpr);
+
+    c.fillStyle = '#94a3b8';
+    c.font = (11 * dpr) + 'px -apple-system, Cairo';
+    c.fillText(room + ' • ' + time, x + w - 14 * dpr, y + 38 * dpr);
+
+    c.fillStyle = color;
+    c.font = '600 ' + (10 * dpr) + 'px -apple-system, Cairo';
+    c.textAlign = 'left';
+    c.fillText(status, x + 28 * dpr, y + 27 * dpr);
+  }
+
+  function drawLaserSweep(c, w, h, dpr, alpha, progress) {
+    var sweepY = -h/2 + 20 * dpr + progress * (h - 40 * dpr);
+
+    var coneGrad = c.createLinearGradient(0, sweepY - 30 * dpr, 0, sweepY + 30 * dpr);
+    coneGrad.addColorStop(0, 'rgba(16, 185, 129, 0)');
+    coneGrad.addColorStop(0.5, 'rgba(16, 185, 129, ' + (0.35 * alpha) + ')');
+    coneGrad.addColorStop(1, 'rgba(16, 185, 129, 0)');
+    c.fillStyle = coneGrad;
+    c.fillRect(-w/2, sweepY - 30 * dpr, w, 60 * dpr);
+
+    c.strokeStyle = 'rgba(52, 211, 153, ' + (0.95 * alpha) + ')';
+    c.lineWidth = 3 * dpr;
+    c.shadowColor = '#10b981';
+    c.shadowBlur = 18 * dpr;
+    c.beginPath();
+    c.moveTo(-w/2, sweepY);
+    c.lineTo(w/2, sweepY);
+    c.stroke();
+    c.shadowColor = 'transparent';
+
+    c.save();
+    c.translate(0, sweepY - 24 * dpr);
+    c.fillStyle = 'rgba(16, 185, 129, ' + (0.9 * alpha) + ')';
+    c.beginPath();
+    roundRect(c, -80 * dpr, -12 * dpr, 160 * dpr, 24 * dpr, 12 * dpr);
+    c.fill();
+    c.fillStyle = '#022c22';
+    c.font = 'bold ' + (11 * dpr) + 'px Inter';
+    c.textAlign = 'center';
+    c.fillText('KIOSK LASER SCAN ACTIVE', 0, 4 * dpr);
+    c.restore();
+  }
+
+  function drawAppleWalletPass(c, cx, cy, w, h, dpr, fly, p) {
+    c.save();
+    var cardX = cx + (fly * (w * 0.16));
+    var cardY = cy - (fly * (h * 0.12));
+    var cardScale = 0.85 + fly * 0.35;
+    var cardRot = (1 - fly) * -12 + Math.sin(p * 8) * 3;
+
+    c.translate(cardX, cardY);
+    c.rotate((cardRot * Math.PI) / 180);
+    c.scale(cardScale, cardScale);
+
+    var pw = 300 * dpr;
+    var ph = 190 * dpr;
+    var pr = 18 * dpr;
+
+    c.shadowColor = 'rgba(0, 0, 0, 0.75)';
+    c.shadowBlur = 40 * dpr;
+    c.shadowOffsetY = 24 * dpr;
+
+    var passGrad = c.createLinearGradient(-pw/2, -ph/2, pw/2, ph/2);
+    passGrad.addColorStop(0, '#111827');
+    passGrad.addColorStop(0.5, '#1e1b4b');
+    passGrad.addColorStop(1, '#0f172a');
+    c.beginPath();
+    roundRect(c, -pw/2, -ph/2, pw, ph, pr);
+    c.fillStyle = passGrad;
+    c.fill();
+    c.shadowColor = 'transparent';
+
+    var holoGrad = c.createLinearGradient(-pw/2, -ph/2, pw/2, ph/2);
+    holoGrad.addColorStop(0, 'rgba(244, 63, 94, 0.7)');
+    holoGrad.addColorStop(0.25, 'rgba(234, 179, 8, 0.7)');
+    holoGrad.addColorStop(0.5, 'rgba(34, 197, 94, 0.7)');
+    holoGrad.addColorStop(0.75, 'rgba(56, 189, 248, 0.7)');
+    holoGrad.addColorStop(1, 'rgba(168, 85, 247, 0.7)');
+    c.lineWidth = 2 * dpr;
+    c.strokeStyle = holoGrad;
+    c.stroke();
+
+    c.fillStyle = '#fff';
+    c.font = 'bold ' + (13 * dpr) + 'px -apple-system, Cairo';
+    c.textAlign = 'right';
+    c.fillText('بطاقة الطالب الذكية • Smart Pass', pw/2 - 18 * dpr, -ph/2 + 28 * dpr);
+
+    c.fillStyle = '#94a3b8';
+    c.font = (11 * dpr) + 'px Inter';
+    c.textAlign = 'left';
+    c.fillText('APPLE WALLET ID', -pw/2 + 18 * dpr, -ph/2 + 28 * dpr);
+
+    drawChip(c, -pw/2 + 20 * dpr, -ph/2 + 46 * dpr, 36 * dpr, 26 * dpr, dpr);
+
+    c.fillStyle = '#f8fafc';
+    c.font = 'bold ' + (14 * dpr) + 'px -apple-system, Cairo';
+    c.textAlign = 'right';
+    c.fillText('أحمد محمد كمال', pw/2 - 18 * dpr, -ph/2 + 75 * dpr);
+
+    c.fillStyle = '#38bdf8';
+    c.font = (11 * dpr) + 'px -apple-system, Cairo';
+    c.fillText('الصف الثالث الثانوي • علمي علوم', pw/2 - 18 * dpr, -ph/2 + 95 * dpr);
+
+    drawBarcode(c, -pw/2 + 20 * dpr, ph/2 - 50 * dpr, pw - 40 * dpr, 34 * dpr, dpr);
+
+    c.restore();
+  }
+
+  function drawChip(c, x, y, w, h, dpr) {
+    c.fillStyle = '#eab308';
+    c.beginPath();
+    roundRect(c, x, y, w, h, 4 * dpr);
+    c.fill();
+    c.strokeStyle = '#a16207';
+    c.lineWidth = 1 * dpr;
+    c.stroke();
+    c.beginPath();
+    c.moveTo(x + w * 0.4, y);
+    c.lineTo(x + w * 0.4, y + h);
+    c.moveTo(x + w * 0.7, y);
+    c.lineTo(x + w * 0.7, y + h);
+    c.stroke();
+  }
+
+  function drawBarcode(c, x, y, w, h, dpr) {
+    c.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    var barCount = 38;
+    var barW = w / (barCount * 1.6);
+    for (var i = 0; i < barCount; i++) {
+      var thick = (i % 3 === 0 || i % 7 === 0) ? barW * 1.8 : barW;
+      c.fillRect(x + i * barW * 1.6, y, thick, h);
+    }
+  }
+
+  function roundRect(ctx, x, y, width, height, radius) {
+    if (radius === undefined) radius = 5;
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+  }
+
+  function renderLoop() {
+    currentProgress += (targetProgress - currentProgress) * 0.14;
+
+    drawFrame(currentProgress);
+    updateNarrative(currentProgress);
+
+    requestAnimationFrame(renderLoop);
+  }
+
+  function drawFrame(p) {
+    if (!ctx || !canvas) return;
+    var frameIdx = Math.min(TOTAL_FRAMES - 1, Math.max(0, Math.floor(p * (TOTAL_FRAMES - 1))));
+    if (frames[frameIdx]) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(frames[frameIdx], 0, 0, canvas.width, canvas.height);
+    }
+  }
+
+  function updateNarrative(p) {
+    var slide0 = document.getElementById('storySlide0');
+    var slide1 = document.getElementById('storySlide1');
+    var slide2 = document.getElementById('storySlide2');
+
+    if (slide0 && slide1 && slide2) {
+      if (p < 0.28) {
+        setSlideOpacity(slide0, 1 - (p / 0.28) * 0.3);
+        setSlideOpacity(slide1, 0);
+        setSlideOpacity(slide2, 0);
+      } else if (p < 0.58) {
+        var t = (p - 0.28) / 0.30;
+        setSlideOpacity(slide0, Math.max(0, 1 - t * 2));
+        setSlideOpacity(slide1, Math.sin(t * Math.PI));
+        setSlideOpacity(slide2, 0);
+      } else if (p < 0.82) {
+        var t = (p - 0.58) / 0.24;
+        setSlideOpacity(slide0, 0);
+        setSlideOpacity(slide1, Math.max(0, 1 - t * 2));
+        setSlideOpacity(slide2, Math.sin(t * Math.PI));
+      } else {
+        setSlideOpacity(slide0, 0);
+        setSlideOpacity(slide1, 0);
+        setSlideOpacity(slide2, 0);
+      }
+    }
+
+    if (progressFill) {
+      progressFill.style.width = Math.min(100, Math.max(0, p * 100)) + '%';
+    }
+
+    if (hintEl) {
+      hintEl.style.opacity = p > 0.80 ? '0' : '1';
+    }
+
+    if (loginCard) {
+      if (p >= 0.78) {
+        var cardT = (p - 0.78) / 0.22;
+        loginCard.classList.add('active');
+        loginCard.style.opacity = Math.min(1, cardT * 1.5);
+        loginCard.style.transform = 'translateY(' + ((1 - cardT) * 40) + 'px) scale(' + (0.94 + cardT * 0.06) + ')';
+        loginCard.style.pointerEvents = 'all';
+      } else {
+        loginCard.classList.remove('active');
+        loginCard.style.opacity = '0';
+        loginCard.style.transform = 'translateY(60px) scale(0.92)';
+        loginCard.style.pointerEvents = 'none';
+      }
+    }
+  }
+
+  function setSlideOpacity(el, val) {
+    if (!el) return;
+    el.style.opacity = val;
+    el.style.transform = 'translateY(' + ((1 - val) * 20) + 'px)';
+    el.style.pointerEvents = val > 0.5 ? 'all' : 'none';
+  }
+
+  return {
+    init: init,
+    scrollToStep: scrollToStep
+  };
+})();
+
 window.addEventListener('DOMContentLoaded', function() {
   initTheme();
+  AppleVideoEngine.init();
   checkExistingSession();
 });
 </script>

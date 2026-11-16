@@ -17,6 +17,7 @@
 - `/readyz`, `/metrics`, production configuration guards, and CI verification workflow.
 - Center operational summary reports and manager-only audit-log API.
 - Full modern Apple/Fintech UI design system with Obsidian Dark and Porcelain Light themes, glassmorphism, and responsive navigation.
+- Apple-style scroll-driven video frame scrubbing engine on the login screen with 3D device teardown, laser scanner sweep, Apple Wallet pass ejection, and narrative slides.
 - Spotlight Command Palette (Cmd+K / Ctrl+K) for instant fuzzy search across students, teachers, pages, and actions.
 - Interactive Kiosk Reception Barcode / QR Scanner with Web Audio chime, real-time student verification, fee status alerts, and WhatsApp parent messaging.
 - Complete Student CRUD, Teacher CRUD, and Group CRUD APIs with center isolation and audit logs.
