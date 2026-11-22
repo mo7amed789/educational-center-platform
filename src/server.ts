@@ -47,6 +47,11 @@ export function buildApp() {
     const html = await readFile(path.join(process.cwd(), 'center-admin-v2.html'), 'utf8');
     return reply.type('text/html; charset=utf-8').send(html);
   });
+  app.get('/assets/teacher-attendance.js', async (_request, reply) => {
+    const script = await readFile(path.join(process.cwd(), 'assets/teacher-attendance.js'), 'utf8');
+    return reply.type('application/javascript; charset=utf-8').send(script);
+  });
+
   app.get('/assets/exam-grade-entry.js', async (_request, reply) => {
     const script = await readFile(path.join(process.cwd(), 'assets/exam-grade-entry.js'), 'utf8');
     return reply.type('application/javascript; charset=utf-8').send(script);
@@ -142,7 +147,7 @@ export function buildApp() {
 
   app.post('/api/legacy/import', async (request, reply) => {
     const user = await requireUser(request, reply); if (!user) return;
-    if (!user.centerId || !(await authorize(user.id, 'settings.manage', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
+    if (!user.centerId || ['TEACHER', 'STUDENT', 'GUARDIAN'].includes(user.role) || !(await authorize(user.id, 'settings.manage', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
     try {
       const summary = await prisma.$transaction(async (tx) => {
         const summary = await migrateLegacyData(request.body, user.centerId!, tx);
@@ -155,7 +160,7 @@ export function buildApp() {
 
   app.post('/api/import/excel', async (request, reply) => {
     const user = await requireUser(request, reply); if (!user) return;
-    if (!user.centerId || !(await authorize(user.id, 'settings.manage', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
+    if (!user.centerId || ['TEACHER', 'STUDENT', 'GUARDIAN'].includes(user.role) || !(await authorize(user.id, 'settings.manage', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
     const upload = await request.file();
     if (!upload) return reply.code(422).send({ error: 'FILE_REQUIRED' });
     const extension = upload.filename.toLowerCase().split('.').pop();
@@ -346,7 +351,7 @@ export function buildApp() {
 
   app.post('/api/center/attendance', async (request, reply) => {
     const user = await requireUser(request, reply); if (!user) return;
-    if (!user.centerId || !(await authorize(user.id, 'attendance.create', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
+    if (!user.centerId || ['TEACHER', 'STUDENT', 'GUARDIAN'].includes(user.role) || !(await authorize(user.id, 'attendance.create', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
     const input = z.object({ studentId: z.coerce.number().int().positive(), groupId: z.coerce.number().int().positive(), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), status: z.enum(['PRESENT', 'ABSENT', 'LATE', 'EXCUSED']), note: z.string().trim().max(500).optional() }).parse(request.body);
     const result = await prisma.$transaction(async (tx) => {
       const enrollment = await tx.enrollment.findFirst({ where: { studentId: input.studentId, groupId: input.groupId, student: { centerId: user.centerId! }, group: branchScope(user) }, include: { group: { include: { teacher: { select: { userId: true, centerId: true } } } } } });
@@ -720,7 +725,7 @@ export function buildApp() {
   // QUICK SCAN RECEPTION KIOSK
   app.post('/api/center/attendance/scan', async (request, reply) => {
     const user = await requireUser(request, reply); if (!user) return;
-    if (!user.centerId || !(await authorize(user.id, 'attendance.create', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
+    if (!user.centerId || ['TEACHER', 'STUDENT', 'GUARDIAN'].includes(user.role) || !(await authorize(user.id, 'attendance.create', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
     const input = z.object({
       code: z.string().trim().min(1).max(50),
     }).parse(request.body);
@@ -841,4 +846,4 @@ if (process.env.NODE_ENV !== 'test') {
     await prisma.$disconnect().catch(() => undefined);
     process.exit(1);
   });
-                                         }
+                                                                                                                     }
