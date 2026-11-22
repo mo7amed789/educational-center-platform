@@ -10,6 +10,22 @@ export function branchScope(user: ScopedUser) {
   return { centerId: user.centerId || '', ...(user.role === 'BRANCH_ADMIN' ? { branchId: user.branchId || '__missing_branch__' } : {}) };
 }
 
+export function assignedGroupScope(user: ScopedUser & Pick<User, 'id'>): Prisma.GroupWhereInput {
+  return { ...branchScope(user), ...(user.role === 'TEACHER' ? { teacher: { userId: user.id, centerId: user.centerId || '' } } : {}) };
+}
+
+export function studentScope(user: ScopedUser & Pick<User, 'id'>): Prisma.StudentWhereInput {
+  return { ...branchScope(user),
+    ...(user.role === 'TEACHER' ? { enrollments: { some: { group: assignedGroupScope(user) } } } : {}),
+    ...(user.role === 'STUDENT' ? { userId: user.id } : {}),
+    ...(user.role === 'GUARDIAN' ? { guardianLinks: { some: { guardian: { userId: user.id, centerId: user.centerId || '' } } } } : {}),
+  };
+}
+
+export function teacherScope(user: ScopedUser & Pick<User, 'id'>): Prisma.TeacherWhereInput {
+  return { ...branchScope(user), ...(user.role === 'TEACHER' ? { userId: user.id } : {}) };
+}
+
 export async function branchForWrite(user: ScopedUser, requested: string | null | undefined, fallback: string | null, client: Pick<Prisma.TransactionClient, 'branch'> = prisma) {
   const id = requested === undefined ? (user.role === 'BRANCH_ADMIN' ? user.branchId : fallback) : requested || null;
   if (user.role === 'BRANCH_ADMIN' && (!id || id !== user.branchId)) return { ok: false as const };
@@ -36,4 +52,4 @@ export function registerBranchScopeGuard(app: FastifyInstance) {
       return reply.code(403).send({ error: 'CENTER_ADMIN_REQUIRED' });
     }
   });
-}
+      }
