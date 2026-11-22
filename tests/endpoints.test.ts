@@ -1,8 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../src/server.js';
+import { prisma } from '../src/prisma.js';
 
 describe('Server & Endpoints test suite', () => {
   const app = buildApp();
+  afterAll(async () => { await app.close(); await prisma.$disconnect(); });
 
   it('responds with health check status', async () => {
     const res = await app.inject({ method: 'GET', url: '/healthz' });
