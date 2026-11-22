@@ -150,3 +150,34 @@
   [data-theme] .nav-item.active { border: 2px solid Highlight; }
   [data-theme] .btn { border: 1px solid ButtonText; }
 }
+
+/* Kiosk detail is readable alongside scanning and on narrow screens. */
+.kiosk-lookup-form { display:flex; flex-wrap:wrap; align-items:flex-end; gap:14px; }
+.kiosk-lookup-form .field { flex:1 1 260px; margin:0; }
+.kiosk-profile { margin-top:20px; width:100%; min-width:0; border-top:1px solid var(--border); padding-top:20px; text-align:right; }
+.kiosk-profile-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; overflow-wrap:anywhere; }
+.kiosk-profile-heading h2 { margin:0; }
+.kiosk-profile-heading code { color:var(--pr); }
+.kiosk-identity { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.kiosk-identity > div { padding:12px; border-radius:12px; background:var(--bg-surface-elevated); }
+.kiosk-identity dt { color:var(--tx-muted); font-size:12px; }
+.kiosk-identity dd { margin:8px 0 0; overflow-wrap:anywhere; }
+.kiosk-matches { display:grid; gap:10px; }
+.kiosk-history-month { margin:22px 0; }
+.kiosk-profile-section { margin:16px 0; border:1px solid var(--border); border-radius:12px; padding:14px; min-width:0; }
+.kiosk-profile-section summary { cursor:pointer; color:var(--pr); font-weight:700; }
+.kiosk-profile .data-table td { white-space:normal; overflow-wrap:anywhere; }
+.kiosk-grid > * { min-width:0; }
+@media(max-width:600px) { .kiosk-identity { grid-template-columns:1fr; } .kiosk-lookup-form .btn { width:100%; } .kiosk-profile-section { padding:10px; } }
+
+.kiosk-grid { align-items:start; }
+.kiosk-profile { margin-top:24px; }
+.kiosk-profile .kiosk-identity { grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr)); }
+@media(max-width:600px) {
+ .kiosk-profile .data-table { display:block; min-width:0; width:100%; }
+ .kiosk-profile thead { display:none; }
+ .kiosk-profile tbody, .kiosk-profile tr { display:block; }
+ .kiosk-profile tr { padding:10px 0; border-bottom:1px solid var(--border); }
+ .kiosk-profile .data-table td { display:flex; justify-content:space-between; gap:14px; padding:9px 4px; border:0; white-space:normal; }
+ .kiosk-profile td::before { content:attr(data-label); color:var(--tx-muted); flex-shrink:0; max-width:45%; }
+                              }

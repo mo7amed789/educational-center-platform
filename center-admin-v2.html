@@ -2117,6 +2117,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 <script src="/assets/exam-grade-entry.js"></script>
 <script src="/assets/teacher-attendance.js"></script>
+<script src="/assets/kiosk-student-profile.js"></script>
 <script>
 /* ==========================================================================
    STATE & CORE CONFIGURATION
@@ -2252,6 +2253,7 @@ function handleLogin(e) {
 
 function clearCenterData() {
   STATE.sessionEpoch += 1;
+  if (typeof newKioskProfile === 'function') KIOSK_PROFILE = newKioskProfile();
   STATE.teachers = []; STATE.groups = []; STATE.courses = []; STATE.classrooms = [];
   STATE.students = []; STATE.sessions = []; STATE.subscriptions = []; STATE.attendance = {};
   STATE.reports = null; STATE.sessionsAvailable = false; STATE.centerLoading = false; STATE.searchQuery = '';
@@ -2862,17 +2864,19 @@ function renderScheduleView(c) {
 
 /* 6. KIOSK SCANNER VIEW (RECEPTION SMART SCAN) */
 function renderKioskView(c) {
+  KIOSK_PROFILE.sequence++; KIOSK_PROFILE.searchSequence++; KIOSK_PROFILE.profile = null; KIOSK_PROFILE.studentId = null;
   c.innerHTML = `
     <div class="view-header">
       <div class="view-title-group">
         <h1>كشك المسح السريع بالباركود وQR (الاستقبال الذكي)</h1>
-        <p>مسح فوري لبطاقة الطالب، تسجيل الحضور التلقائي، والتحقق من سداد الرسوم مع صوت التنبيه</p>
+        <p>مسح الكود يسجل الحضور كالمعتاد ويعرض الملف. البحث المنفصل بالاسم أو الكود يعرض البيانات فقط.</p>
       </div>
       <div class="view-actions">
         <span class="badge badge-success"><span class="pulse-dot"></span>جاهز للمسح</span>
       </div>
     </div>
 
+    <form class="panel kiosk-lookup-form" onsubmit="return searchKioskStudent(event)"><div class="field"><label for="kioskSearchInput">بحث عن طالب بالاسم أو الكود، دون تسجيل حضور</label><input id="kioskSearchInput" type="search" maxlength="100" placeholder="الاسم أو STUDENT:1001" autocomplete="off"></div><button class="btn btn-secondary" type="submit">بحث وعرض البيانات فقط</button></form>
     <div class="kiosk-grid">
       <!-- SCANNER TARGET AREA -->
       <div class="kiosk-scanner-box">
@@ -2897,11 +2901,10 @@ function renderKioskView(c) {
           <button type="submit" class="btn btn-block" style="padding:14px">تسجيل الحضور الآن (Scan Check-in)</button>
         </form>
 
-        <div id="kioskResultBox" style="margin-top:20px;flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;border:2px dashed var(--border);border-radius:var(--radius-md);padding:20px">
-          <div style="color:var(--tx-dim);font-size:14px">في انتظار إدخال بطاقة الطالب الأولى...</div>
-        </div>
+<p class="monthly-note">ملف الطالب يظهر أسفل منطقة المسح والبحث.</p>
       </div>
     </div>
+    <section id="kioskResultBox" class="panel kiosk-profile" aria-live="polite"><p class="monthly-note">ابحث عن الطالب لعرض ملفه دون تسجيل، أو امسح بطاقته لتسجيل الحضور وعرض الملف.</p></section>
   `;
   setTimeout(function() {
     var el = document.getElementById('kioskCodeInput');
@@ -2916,6 +2919,7 @@ function handleKioskScan(e) {
   if (!code) return false;
 
   var box = document.getElementById('kioskResultBox');
+  var state = KIOSK_PROFILE, epoch = STATE.sessionEpoch; var scanSequence = ++state.sequence; state.searchSequence++;
   box.innerHTML = '<div style="color:var(--pr);font-weight:700">جارٍ معالجة البطاقة وتسجيل الحضور...</div>';
 
   api('/api/center/attendance/scan', {
@@ -2923,45 +2927,20 @@ function handleKioskScan(e) {
     body: JSON.stringify({ code: code })
   })
   .then(function(res) {
+    if (!kioskCurrent(state, epoch, scanSequence)) return;
     playAudioChime(true);
-    var s = res.student;
-    var g = res.group || {};
-    var isPaid = res.isPaid;
-    var financialVisible = res.financialVisible === true;
-    var waParent = s.parent ? s.parent.replace(/[^0-9]/g, '') : '';
-    if (waParent.startsWith('0')) waParent = '2' + waParent;
-
-    box.innerHTML = `
-      <div class="scan-success-anim" style="width:100%;text-align:right;background:var(--bg-surface-elevated);border-radius:var(--radius-md);padding:18px;border:1px solid var(--border)">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <span class="badge badge-success" style="font-size:13px">✅ تم تسجيل الحضور بنجاح</span>
-          <span style="font-family:var(--font-num);font-weight:700">#${s.id}</span>
-        </div>
-        <h3 style="margin:0 0 6px;font-size:18px;color:var(--tx)">${safeText(s.name)}</h3>
-        <p style="margin:0 0 12px;font-size:13px;color:var(--tx-muted)">المجموعة: <strong>${safeText(g.grade || 'مجموعة دراسية')}</strong></p>
-        
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:var(--bg-surface);border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:12px">
-          <span style="font-size:12.5px;font-weight:600">حالة اشتراك هذا الشهر:</span>
-          ${!financialVisible ? '<span class="badge badge-neutral">غير متاحة لهذا الحساب</span>' : isPaid ? '<span class="badge badge-success">مسدد بالكامل ✅</span>' : '<span class="badge badge-warning">لم يسجل كسداد كامل</span>'}
-        </div>
-
-        ${s.parent ? `
-          <a href="https://wa.me/${waParent}?text=${encodeURIComponent('تم بحمد الله تسجيل وصول الطالب ' + s.name + ' للسنتر لحضور حصة اليوم.')}" target="_blank" class="btn btn-secondary btn-sm btn-block" style="color:var(--wa)">
-            إرسال إشعار وصول بالواتساب لولي الأمر (${s.parent})
-          </a>
-        ` : ''}
-      </div>
-    `;
+    loadKioskProfile(res.student.id, 'تم تسجيل الحضور بنجاح');
     input.value = '';
     input.focus();
     snack(res.message, 'success');
   })
   .catch(function(err) {
+    if (!kioskCurrent(state, epoch, scanSequence)) return;
     playAudioChime(false);
     box.innerHTML = `
       <div style="color:var(--er);font-weight:700;padding:20px">
         <div style="font-size:24px;margin-bottom:8px">❌</div>
-        <div>${err.message || 'تعذر تسجيل الحضور'}</div>
+        <div>${safeText(err.message || 'تعذر تسجيل الحضور')}</div>
       </div>
     `;
     input.focus();

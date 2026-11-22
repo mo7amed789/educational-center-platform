@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { prisma } from './prisma.js';
 import { branchScope, assignedGroupScope, studentScope, teacherScope, branchForWrite, registerBranchScopeGuard } from './resourceScopes.js';
 import { registerMonthlyReportRoutes } from './monthlyReports.js';
+import { registerKioskStudentRoutes } from './kioskStudents.js';
 import { registerSelectedAttendanceRoutes } from './selectedAttendance.js';
 import { registerExamRoutes } from './exams.js';
 import { createSession, destroySession, publicUser, requirePermission, requireUser, currentUser, generateMfaSecret, verifyMfaCode, SESSION_COOKIE } from './auth.js';
@@ -47,6 +48,11 @@ export function buildApp() {
     const html = await readFile(path.join(process.cwd(), 'center-admin-v2.html'), 'utf8');
     return reply.type('text/html; charset=utf-8').send(html);
   });
+  app.get('/assets/kiosk-student-profile.js', async (_request, reply) => {
+    const script = await readFile(path.join(process.cwd(), 'assets/kiosk-student-profile.js'), 'utf8');
+    return reply.type('application/javascript; charset=utf-8').send(script);
+  });
+
   app.get('/assets/platform-theme.css', async (_request, reply) => {
     const css = await readFile(path.join(process.cwd(), 'assets/platform-theme.css'), 'utf8');
     return reply.type('text/css; charset=utf-8').send(css);
@@ -799,6 +805,7 @@ export function buildApp() {
   registerAutoUpdateRoutes(app);
   registerMonthlyReportRoutes(app);
   registerSelectedAttendanceRoutes(app);
+  registerKioskStudentRoutes(app);
   registerExamRoutes(app);
   registerNotificationRoutes(app);
 
@@ -851,4 +858,4 @@ if (process.env.NODE_ENV !== 'test') {
     await prisma.$disconnect().catch(() => undefined);
     process.exit(1);
   });
-      }
+  }
