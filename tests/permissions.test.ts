@@ -8,7 +8,9 @@ describe('RBAC permissions', () => {
   });
 
   it('limits teachers to their operational scope', () => {
-    expect(hasPermission('TEACHER', 'attendance.create')).toBe(true);
+    expect(hasPermission('TEACHER', 'attendance.create')).toBe(false);
+    expect(hasPermission('TEACHER', 'attendance.update')).toBe(false);
+    expect(hasPermission('TEACHER', 'attendance.view')).toBe(true);
     expect(hasPermission('TEACHER', 'students.delete')).toBe(false);
     expect(hasPermission('TEACHER', 'finance.record_payment')).toBe(false);
   });
