@@ -3314,15 +3314,18 @@ function renderTeacherPortalView(c) {
 
 function newStudentReport() { return { month: localReportDate().slice(0, 7), date: localReportDate(), loading: false, loaded: false, error: '', report: null, today: [], recentGrades: [], student: null, code: '', sequence: 0 }; }
 var STUDENT_REPORT = newStudentReport();
-function learningStateCurrent(state, sequence, userId, parent) { return (parent ? PARENT_REPORT : STUDENT_REPORT) === state && sequence === state.sequence && STATE.currentUser && STATE.currentUser.id === userId; }
+function learningStateCurrent(state, sequence, userId, parent) { return (parent ? PARENT_REPORT : STUDENT_REPORT) === state && sequence === state.sequence && STATE.currentUser && STATE.currentUser.id === userId && STATE.currentRole === (parent ? 'GUARDIAN' : 'STUDENT'); }
 function loadLearningRole(parent) {
   var state = parent ? PARENT_REPORT : STUDENT_REPORT, sequence = ++state.sequence, userId = STATE.currentUser && STATE.currentUser.id;
   state.loading = true; state.error = ''; state.report = null;
   var view = parent ? 'portal_parent' : 'portal_student'; refreshMonthlyView(view);
   var url = '/api/portal/' + (parent ? 'parent' : 'student') + '/learning-report?month=' + encodeURIComponent(state.month) + '&date=' + encodeURIComponent(state.date);
   if (parent) url += '&studentId=' + encodeURIComponent(state.studentId);
-  return api(url).then(function(data) {
+  state.notificationBusy=''; state.notificationError=false;
+  var notificationsUrl='/api/portal/notifications'+(parent?'?studentId='+encodeURIComponent(state.studentId):'');
+  return Promise.all([api(url),api(notificationsUrl).catch(function(){return {items:[],limit:50,unreadInPage:0,unavailable:true};})]).then(function(responses) {
     if (!learningStateCurrent(state, sequence, userId, parent)) return;
+    var data=responses[0];state.notifications=responses[1];state.notificationError=!!responses[1].unavailable;
     state.examSchedule = data.examSchedule; state.examResults = data.examResults; state.report = data.report; state.today = data.today; state.recentGrades = data.recentGrades; state.student = data.student; state.code = data.code; state.loaded = true;
   }).catch(function(error) {
     if (!learningStateCurrent(state, sequence, userId, parent)) return;
@@ -3338,6 +3341,20 @@ function studentLearningFilterChanged() {
   STUDENT_REPORT.date = document.getElementById('studentReportDate').value;
   return loadStudentLearning();
 }
+function learnerNotificationsHtml(state) {
+  var data=state.notifications||{items:[],limit:50,unreadInPage:0};
+  var html='<section class="panel"><h2 class="panel-title">إشعارات النتائج</h2><p class="monthly-note">أحدث 50 إشعارا لهذا الطالب، من نشر النتائج وتصحيح النتائج المنشورة بعد تفعيل الميزة. غير المقروء ضمن هذه القائمة: '+data.unreadInPage+'. تحدّث عند فتح المتابعة أو الضغط على تحديث، ولا ترسل رسائل خارج المنصة.</p>';
+  if(state.notificationError)return html+'<p role="alert">تعذر تحميل الإشعارات. تقرير المتابعة أدناه ما زال متاحا. اضغط زر التحديث للمحاولة مجددا.</p></section>';
+  if(!data.items.length)return html+'<p class="monthly-empty">لا توجد إشعارات نتائج متاحة لهذا الطالب بعد.</p></section>';
+  html+='<div class="learning-day-grid">'+data.items.map(function(row){return '<article class="learning-day-card"><p class="learning-subject">'+(row.kind==='RESULT_CORRECTED'?'تم تصحيح نتيجة منشورة':'نشرت نتيجة امتحان')+' · '+(row.readAt?'مقروء':'جديد')+'</p><h3>'+safeText(row.title)+'</h3><p>'+safeText(row.studentName)+' · مراجعة '+row.revision+'</p><p class="monthly-note"><time>'+safeText(new Date(row.createdAt).toLocaleString('ar-EG'))+'</time></p><div class="exam-actions"><button class="btn btn-sm btn-secondary" onclick="document.getElementById(\'publishedExamResults\').scrollIntoView({behavior:\'smooth\',block:\'start\'})">عرض النتائج الحالية</button>'+(!row.readAt?'<button class="btn btn-sm" onclick="markLearnerNotificationRead(\''+safeText(row.id)+'\')"'+(state.notificationBusy?' disabled':'')+'>تحديد كمقروء</button>':'')+'</div></article>';}).join('')+'</div>';
+  return html+'</section>';
+}
+function markLearnerNotificationRead(id) {
+  var parent=STATE.currentRole==='GUARDIAN',state=parent?PARENT_REPORT:STUDENT_REPORT,sequence=state.sequence,userId=STATE.currentUser&&STATE.currentUser.id;
+  if(state.notificationBusy||!state.notifications)return;state.notificationBusy=id;refreshMonthlyView(parent?'portal_parent':'portal_student');
+  api('/api/portal/notifications/'+encodeURIComponent(id)+'/read',{method:'POST',body:JSON.stringify({})}).then(function(){if(!learningStateCurrent(state,sequence,userId,parent))return;var item=state.notifications.items.find(function(row){return row.id===id;});if(item&&!item.readAt){item.readAt=true;state.notifications.unreadInPage=Math.max(0,state.notifications.unreadInPage-1);}}).catch(function(){if(learningStateCurrent(state,sequence,userId,parent))state.notificationError=true;}).finally(function(){if(!learningStateCurrent(state,sequence,userId,parent))return;state.notificationBusy='';refreshMonthlyView(parent?'portal_parent':'portal_student');});
+}
+
 function learningTodayHtml(state) {
   var statuses = { PRESENT: 'حاضر', ABSENT: 'غائب مسجل', LATE: 'متأخر', EXCUSED: 'بعذر', UNKNOWN: 'حالة تحتاج مراجعة' };
   var lessonStatuses = { scheduled: 'مجدولة', active: 'جارية', completed: 'انتهت', cancelled: 'ملغاة' };
@@ -3350,7 +3367,7 @@ function learningTodayHtml(state) {
   }).join('') + '</div>' : '<p class="monthly-empty">لا توجد حصص بموعد مسجل أو سجلات حضور لهذا اليوم. هذا لا يعني غياب الطالب.</p>';
   html += '</section><section class="panel"><h2 class="panel-title">آخر الدرجات المسجلة</h2><p class="monthly-note">أحدث 5 تقييمات حتى تاريخ المتابعة المختار، وليست جدول امتحانات قادمة.</p>';
   html += state.recentGrades.length ? '<div class="learning-grade-list">' + state.recentGrades.map(function(grade) { return '<article class="learning-grade-card"><div><strong>' + safeText(grade.title) + '</strong><p>' + safeText(grade.subject + ' / ' + grade.group) + '</p><time>' + safeText(grade.assessedOn) + '</time></div><div class="learning-grade-score"><strong dir="ltr">' + grade.score + ' / ' + grade.maxScore + '</strong><span>' + grade.percentage + '%</span></div></article>'; }).join('') + '</div>' : '<p class="monthly-empty">لا توجد درجات مسجلة حتى هذا التاريخ.</p>';
-  return html + '</section>' + learningExamsHtml(state);
+  return learnerNotificationsHtml(state) + html + '</section>' + learningExamsHtml(state);
 }
 function renderStudentPortalView(c) {
   var state = STUDENT_REPORT;
@@ -3433,7 +3450,7 @@ function learningExamsHtml(state) {
   var schedule=state.examSchedule||[],results=state.examResults||[];
   var html='<section class="panel"><h2 class="panel-title">مواعيد الامتحانات</h2><p class="monthly-note">أقرب 20 امتحانا ابتداء من تاريخ المتابعة المختار. التوقيت والمنطقة الزمنية كما سجلهما السنتر.</p>';
   html+=schedule.length?'<div class="learning-day-grid">'+schedule.map(function(exam){return '<article class="learning-day-card"><p class="learning-subject">'+safeText(exam.subject)+'</p><h3>'+safeText(exam.title)+'</h3><p>'+safeText(exam.group)+' #'+exam.groupId+'</p><p>'+safeText(exam.date)+'<br><span dir="ltr">'+safeText(exam.startsAt+' - '+exam.endsAt)+'</span><br><span dir="ltr">'+safeText(exam.timezone)+'</span></p><p>الدرجة العظمى: '+exam.maxScore+'</p></article>';}).join('')+'</div>':'<p class="monthly-empty">لا توجد امتحانات بموعد مسجل بدءا من هذا التاريخ.</p>';
-  html+='</section><section class="panel"><h2 class="panel-title">نتائج الامتحانات المنشورة</h2><p class="monthly-note">آخر 20 نتيجة منشورة لصاحب الحساب أو الابن المختار فقط. عدم عرض نتيجة لا يعني صفرا.</p>';
+  html+='</section><section class="panel"><h2 class="panel-title" id="publishedExamResults">نتائج الامتحانات المنشورة</h2><p class="monthly-note">آخر 20 نتيجة منشورة لصاحب الحساب أو الابن المختار فقط. عدم عرض نتيجة لا يعني صفرا.</p>';
   html+=results.length?'<div class="learning-grade-list">'+results.map(function(result){return '<article class="learning-grade-card"><div><strong>'+safeText(result.title)+'</strong><p>'+safeText(result.subject+' / '+result.group)+'</p><time>'+safeText(result.assessedOn)+'</time></div><div class="learning-grade-score"><strong dir="ltr">'+result.score+' / '+result.maxScore+'</strong><span>'+(result.revision?'مصححة · '+result.revision:'منشورة')+'</span></div></article>';}).join('')+'</div>':'<p class="monthly-empty">لا توجد نتائج امتحانات منشورة بعد.</p>';
   return html+'</section>';
 }
