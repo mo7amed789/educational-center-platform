@@ -477,13 +477,17 @@ export function buildApp() {
     const user = await requireUser(request, reply); if (!user) return;
     if (!user.centerId || !(await authorize(user.id, 'students.view', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
     const params = z.object({ id: z.coerce.number().int().positive() }).parse(request.params);
+    // Keep the generic detail route from bypassing the own-child portal boundary.
     const student = await prisma.student.findFirst({
-      where: { id: params.id, centerId: user.centerId },
+      where: { id: params.id, centerId: user.centerId,
+        ...(user.role === 'STUDENT' ? { userId: user.id } : {}),
+        ...(user.role === 'GUARDIAN' ? { guardianLinks: { some: { guardian: { userId: user.id, centerId: user.centerId } } } } : {}),
+      },
       include: {
-        enrollments: { include: { group: { include: { teacher: true, course: true } } } },
-        attendance: { orderBy: { date: 'desc' }, take: 30 },
-        subscriptions: { orderBy: { month: 'desc' }, take: 12 },
-        guardianLinks: { include: { guardian: true } },
+        enrollments: { where: { group: { centerId: user.centerId } }, include: { group: { include: { teacher: true, course: true } } } },
+        attendance: { where: { group: { centerId: user.centerId } }, orderBy: { date: 'desc' }, take: 30 },
+        subscriptions: { where: { group: { centerId: user.centerId } }, orderBy: { month: 'desc' }, take: 12 },
+        guardianLinks: { where: { guardian: { centerId: user.centerId } }, include: { guardian: true } },
       },
     });
     if (!student) return reply.code(404).send({ error: 'STUDENT_NOT_FOUND' });
@@ -827,13 +831,15 @@ export function buildApp() {
   // STUDENT & PARENT PORTALS
   app.get('/api/portal/student', async (request, reply) => {
     const user = await requireUser(request, reply); if (!user) return;
-    if (user.role !== 'STUDENT' && user.role !== 'SUPER_ADMIN') return reply.code(403).send({ error: 'FORBIDDEN' });
+    if ((user.role !== 'STUDENT' && user.role !== 'SUPER_ADMIN') || !user.centerId ||
+        !(await authorize(user.id, 'attendance.view', { centerId: user.centerId })) ||
+        !(await authorize(user.id, 'academic.view', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
     const student = await prisma.student.findFirst({
-      where: { userId: user.id },
+      where: { userId: user.id, centerId: user.centerId },
       include: {
-        enrollments: { include: { group: { include: { teacher: true, course: true, schedules: true } } } },
-        attendance: { orderBy: { date: 'desc' }, take: 25 },
-        subscriptions: { orderBy: { month: 'desc' }, take: 6 },
+        enrollments: { where: { group: { centerId: user.centerId } }, include: { group: { include: { teacher: true, course: true, schedules: true } } } },
+        attendance: { where: { group: { centerId: user.centerId } }, orderBy: { date: 'desc' }, take: 25 },
+        subscriptions: { where: { group: { centerId: user.centerId } }, orderBy: { month: 'desc' }, take: 6 },
       },
     });
     if (!student) return reply.code(404).send({ error: 'STUDENT_PROFILE_NOT_LINKED' });
@@ -888,4 +894,4 @@ if (process.env.NODE_ENV !== 'test') {
   assertProductionConfig();
   const port = Number(process.env.PORT ?? 3000);
   buildApp().listen({ port, host: process.env.HOST ?? '127.0.0.1' }).catch(async (error) => { console.error(error); await prisma.$disconnect(); process.exit(1); });
-      }
+                                            }
