@@ -61,4 +61,42 @@ describe('scoped exam schedules, draft grades and explicit publication',()=>{
     await prisma.$executeRawUnsafe("CREATE TRIGGER exam_audit_failure BEFORE INSERT ON AuditLog WHEN NEW.action = '"+action+"' BEGIN SELECT RAISE(FAIL, 'exam audit failure'); END");
     try{const res=action==='exams.create'?await create({title:'Must roll back'}):action==='exams.result'?await result(id,2):await publish(id);expect(res.statusCode).toBe(500);if(action==='exams.create')expect(await prisma.exam.count()).toBe(before);else if(action==='exams.result')expect(await prisma.gradeRecord.count({where:{examId:id}})).toBe(0);else expect((await prisma.exam.findUniqueOrThrow({where:{id}})).publishedAt).toBeNull();}finally{await prisma.$executeRawUnsafe('DROP TRIGGER exam_audit_failure');}
   });
+
+  const history=(id:string,studentId=pupil,who='owner')=>request('GET',`/api/center/exams/${id}/results/${studentId}/history`,undefined,who);
+  const correct=(id:string,data:Record<string,unknown>={},who='owner',studentId=pupil)=>request('POST',`/api/center/exams/${id}/results/${studentId}/corrections`,{score:7,expectedRevision:0,reason:'Corrected marking error',...data},who);
+  const recorded=async(score=2)=>{const id=await make();expect((await result(id,score)).statusCode).toBe(201);return id;};
+  it('corrects a draft to zero with a revision, previous score, reason, actor and atomic audit',async()=>{
+    const id=await recorded();expect((await correct(id,{score:0})).json()).toMatchObject({grade:{score:0,maxScore:20,revision:1},published:false});
+    const data=(await history(id)).json();expect(data.grade).toMatchObject({score:0,revision:1});expect(data.history).toHaveLength(1);expect(data.history[0]).toMatchObject({previousScore:2,score:0,maxScore:20,revision:1,reason:'Corrected marking error',correctedBy:'owner'});
+    expect(await prisma.auditLog.count({where:{action:'exams.correct_result',entityId:data.grade.id}})).toBe(1);expect((await learner()).json().examResults.some((g:{examId:string})=>g.examId===id)).toBe(false);
+  });
+  it.each([{score:-1},{score:21},{score:2},{reason:'tiny'},{reason:' '},{reason:'x'.repeat(501)},{expectedRevision:-1},{expectedRevision:0.5},{maxScore:200},{confirmPublished:'true'}])('rejects invalid correction or no-op %j without history',async data=>{const id=await recorded();expect((await correct(id,data)).statusCode).toBe(422);expect((await history(id)).json().history).toEqual([]);expect((await history(id)).json().grade.score).toBe(2);});
+  it('rejects stale revisions and retains the newer score',async()=>{const id=await recorded();expect((await correct(id)).statusCode).toBe(200);const stale=await correct(id,{score:9});expect(stale.statusCode).toBe(409);expect(stale.json().error).toBe('GRADE_CHANGED');expect((await history(id)).json().grade).toMatchObject({score:7,revision:1});expect((await history(id)).json().history).toHaveLength(1);});
+  it('requires explicit confirmation and both permissions to correct a published result',async()=>{
+    const id=await recorded();await publish(id);expect((await correct(id)).json().error).toBe('PUBLISHED_CORRECTION_CONFIRMATION_REQUIRED');
+    await prisma.userPermission.create({data:{userId:users.teacher,permissionKey:'academic.manage_grades',allowed:true}});
+    try{expect((await history(id,pupil,'teacher')).json().canCorrect).toBe(false);expect((await correct(id,{confirmPublished:true},'teacher')).statusCode).toBe(403);}finally{await prisma.userPermission.deleteMany({where:{userId:users.teacher}});}
+    expect((await correct(id,{confirmPublished:true})).statusCode).toBe(200);
+    for(const who of ['student','parent']){const body=(await learner(who)).json();expect(body.examResults.find((g:{examId:string})=>g.examId===id)).toMatchObject({score:7,revision:1});expect(JSON.stringify(body)).not.toContain('Corrected marking error');expect(JSON.stringify(body)).not.toContain('correctedBy');}
+    expect((await learner('otherStudent')).json().examResults.some((g:{examId:string})=>g.examId===id)).toBe(false);
+  });
+  it.each(['student','parent','teacher','none'])('does not allow %s into staff correction history or writes',async who=>{const id=await recorded();expect((await history(id,pupil,who)).statusCode).toBe(who==='none'?401:403);expect((await correct(id,{},who)).statusCode).toBe(who==='none'?401:403);});
+  it('scopes teacher and primary-branch correction access',async()=>{
+    const id=await recorded();await prisma.userPermission.create({data:{userId:users.teacher,permissionKey:'academic.manage_grades',allowed:true}});
+    try{expect((await correct(id,{},'teacher')).statusCode).toBe(200);const other=await make({groupId:unassigned});await result(other,2,otherPupil);expect((await history(other,otherPupil,'teacher')).statusCode).toBe(404);expect((await correct(other,{},'teacher',otherPupil)).statusCode).toBe(404);}finally{await prisma.userPermission.deleteMany({where:{userId:users.teacher}});}
+    const other=await make({groupId:otherBranch});await prisma.enrollment.create({data:{groupId:otherBranch,studentId:pupil}});try{await result(other,2);expect((await history(other,pupil,'branch')).statusCode).toBe(404);expect((await correct(other,{},'branch')).statusCode).toBe(404);}finally{await prisma.enrollment.delete({where:{studentId_groupId:{studentId:pupil,groupId:otherBranch}}});}
+  });
+  it('rejects unrelated, missing and foreign result identifiers',async()=>{const id=await recorded();for(const studentId of [otherPupil,foreignPupil,2147483600]){expect((await history(id,studentId)).statusCode).toBe(404);expect((await correct(id,{},'owner',studentId)).statusCode).toBe(404);}expect((await history('missing-exam')).statusCode).toBe(404);});
+  it('retains correction access to an existing own-group result after unenrollment',async()=>{const id=await recorded();await prisma.enrollment.delete({where:{studentId_groupId:{studentId:pupil,groupId:group}}});try{expect((await correct(id)).statusCode).toBe(200);}finally{await prisma.enrollment.create({data:{studentId:pupil,groupId:group}});}});
+  it('rolls back both score and history if audit writing fails',async()=>{
+    const id=await recorded();await prisma.$executeRawUnsafe("CREATE TRIGGER correction_audit_failure BEFORE INSERT ON AuditLog WHEN NEW.action = 'exams.correct_result' BEGIN SELECT RAISE(FAIL, 'correction audit failure'); END");
+    try{expect((await correct(id)).statusCode).toBe(500);const data=(await history(id)).json();expect(data.grade).toMatchObject({score:2,revision:0});expect(data.history).toEqual([]);}finally{await prisma.$executeRawUnsafe('DROP TRIGGER correction_audit_failure');}
+  });
+  it('rejects hard deletion without removing a student or enrollment with correction history',async()=>{const id=await recorded();await correct(id);const res=await app.inject({method:'DELETE',url:'/api/students/'+pupil,remoteAddress:'198.51.100.254',headers:{cookie:cookies.owner}});expect(res.statusCode).toBe(409);expect(res.json().error).toBe('STUDENT_HAS_GRADE_HISTORY');expect(await prisma.student.findUnique({where:{id:pupil}})).not.toBeNull();expect(await prisma.enrollment.count({where:{studentId:pupil,groupId:group}})).toBe(1);});
+  it('returns the latest 50 revisions while retaining all immutable history rows',async()=>{
+    const id=await recorded(),grade=await prisma.gradeRecord.findFirstOrThrow({where:{examId:id}});
+    await prisma.gradeCorrection.createMany({data:Array.from({length:55},(_,i)=>({gradeRecordId:grade.id,revision:i+1,previousScore:1,score:2,maxScore:20,reason:'Historical correction fixture',correctedById:users.owner}))});
+    const data=(await history(id)).json();expect(data.limit).toBe(50);expect(data.history).toHaveLength(50);expect(data.history[0].revision).toBe(55);expect(data.history[49].revision).toBe(6);expect(await prisma.gradeCorrection.count({where:{gradeRecordId:grade.id}})).toBe(55);
+  });
+
 });
