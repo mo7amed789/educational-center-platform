@@ -1865,95 +1865,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
  .grade-record-list td::before { content:attr(data-label); color:var(--tx-muted); flex-shrink:0; }
 }
 
-/* TalimSAT-inspired dark surfaces. All changes are scoped to dark mode. */
-[data-theme="dark"] {
-  color-scheme: dark;
-  --font-sans: 'IBM Plex Sans Arabic', 'Cairo', system-ui, sans-serif;
-  --bg-base: #171717; --bg-surface: #272727; --bg-surface-elevated: #303030;
-  --bg-surface-hover: #383838; --bg-glass: rgba(23,23,23,.97); --bg-glass-subtle: #303030;
-  --border: #404040; --border-hover: #737373; --border-focus: #9bbcff;
-  --pr: #9bbcff; --pr-hover: #bdd2ff; --pr-subtle: #203353;
-  --pr-glow: rgba(32,92,223,.18); --on-pr: #101b2d;
-  --tx: #f6f6f6; --tx-muted: #c2c2c2; --tx-dim: #ababab;
-  --ok: #79dfa5; --ok-glow: #183b29; --er: #ffa3ad; --er-glow: #49262b;
-  --wn: #f6cf73; --wn-glow: #433719; --info: #a7c9ff; --info-glow: #233853;
-  --shadow-sm: 0 2px 7px #00000012; --shadow-md: 0 8px 24px #00000024;
-  --shadow-lg: 0 20px 50px #00000040; --shadow-glow: none;
-  --radius-sm: 10px; --radius-md: 14px; --radius-lg: 18px; --radius-xl: 24px;
-}
-[data-theme="dark"] body { line-height: 1.65; }
-[data-theme="dark"] .sidebar { background: #1c1c1c; }
-[data-theme="dark"] .topbar { border-bottom: 1px solid #333; }
-[data-theme="dark"] .brand-logo { background: #303030; color: #fff; transform: none; border: 1px solid #4b4b4b; }
-[data-theme="dark"] .nav-item { border-radius: 12px; }
-[data-theme="dark"] .nav-item.active { background: #205cdf; color: #fff; }
-[data-theme="dark"] .panel { border-radius: 16px; }
-[data-theme="dark"] .kpi-card { border-radius: 16px; }
-[data-theme="dark"] .kpi-card::before { background: #404040; height: 1px; }
-[data-theme="dark"] .kpi-icon { background: #353535; color: #c4d6ff; border-radius: 10px; }
-[data-theme="dark"] .monthly-hero { border-radius: 18px; }
-[data-theme="dark"] .monthly-stat { border-radius: 14px; }
-[data-theme="dark"] .school-dashboard-header { background: linear-gradient(120deg,#12213f,#272727 72%); border: 1px solid #404d63; border-radius: 20px; }
-[data-theme="dark"] .school-dashboard-header::before { color: #ffffff06; }
-[data-theme="dark"] .school-dashboard-header p { color: #cbd3df; }
-[data-theme="dark"] .school-dashboard-eyebrow { color: #b6cdff; }
-[data-theme="dark"] h1 { font-weight: 600; letter-spacing: 0; }
-[data-theme="dark"] h2 { font-weight: 600; letter-spacing: 0; }
-[data-theme="dark"] .panel-title { font-weight: 600; }
-[data-theme="dark"] .btn { border-radius: 11px; }
-[data-theme="dark"] .btn:not(.btn-secondary):not(.btn-success):not(.btn-danger) { background: #205cdf; color: #fff; }
-[data-theme="dark"] .btn:not(.btn-secondary):not(.btn-success):not(.btn-danger):hover { background: #194fca; }
-[data-theme="dark"] .btn-secondary { background: #303030; color: #f6f6f6; border-color: #626262; }
-[data-theme="dark"] .btn-secondary:hover { background: #3c3c3c; }
-[data-theme="dark"] .btn-success { background: #087f5b; color: #fff; }
-[data-theme="dark"] .btn-success:hover { background: #066447; }
-[data-theme="dark"] .btn-danger { background: #be3455; color: #fff; }
-[data-theme="dark"] .btn-danger:hover { background: #a42b48; }
-[data-theme="dark"] .field input { border-color: #777; border-radius: 11px; }
-[data-theme="dark"] .field select { border-color: #777; border-radius: 11px; }
-[data-theme="dark"] .field textarea { border-color: #777; border-radius: 11px; }
-[data-theme="dark"] input::placeholder { color: #ababab; opacity: 1; }
-[data-theme="dark"] textarea::placeholder { color: #ababab; opacity: 1; }
-[data-theme="dark"] .attendance-status-neutral { background: #474747; color: #f6f6f6; }
-[data-theme="dark"] .school-gate { background: #171717; color: #f6f6f6; }
-[data-theme="dark"] .school-wordmark { color: #f6f6f6; }
-[data-theme="dark"] .school-wordmark-sub { color: #c2c2c2; }
-[data-theme="dark"] .school-logo { background: #303030; color: #c4d6ff; transform: none; }
-[data-theme="dark"] .school-nav-note { color: #c2c2c2; }
-[data-theme="dark"] .school-nav-note span { color: #9bbcff; }
-[data-theme="dark"] .school-nav-login { background: #303030; color: #fff; }
-[data-theme="dark"] .school-hero { background: linear-gradient(155deg,#173b85,#1b1b1b 70%); border: 1px solid #404d63; }
-[data-theme="dark"] .school-kicker { color: #d3dced; }
-[data-theme="dark"] .school-kicker > span { color: #b6cdff; }
-[data-theme="dark"] .school-hero > p { color: #d3dced; }
-[data-theme="dark"] .school-circled::after { border-color: #82aaff; }
-[data-theme="dark"] .school-art { filter: grayscale(1); }
-[data-theme="dark"] .school-hero-foot { color: #d3dced; }
-[data-theme="dark"] .school-login-wrap { background: #272727; border: 1px solid #404040; }
-[data-theme="dark"] .school-login-card { color: #f6f6f6; }
-[data-theme="dark"] .school-form-eyebrow { color: #9bbcff; }
-[data-theme="dark"] .school-login-card > p { color: #c2c2c2; }
-[data-theme="dark"] .school-login-card .field label { color: #e0e0e0; }
-[data-theme="dark"] .school-login-card .field input { color: #f6f6f6; background: #303030; border-color: #777; }
-[data-theme="dark"] .school-login-card .field input:focus { border-color: #9bbcff; box-shadow: 0 0 0 3px #205cdf30; outline-color: #9bbcff; }
-[data-theme="dark"] .school-login-card #loginBtn { background: #205cdf; color: #fff; border-radius: 12px; }
-[data-theme="dark"] .school-login-card #loginBtn span { background: #ffffff20; color: #fff; }
-[data-theme="dark"] .school-login-card .auth-status { color: #ffa3ad; }
-[data-theme="dark"] .school-login-card .auth-status.auth-success { color: #79dfa5; }
-[data-theme="dark"] .school-demo-divider { color: #c2c2c2; }
-[data-theme="dark"] .school-demo-divider::before { background: #505050; }
-[data-theme="dark"] .school-demo-divider::after { background: #505050; }
-[data-theme="dark"] .school-login-card .quick-accounts-title { color: #c2c2c2; }
-[data-theme="dark"] .school-login-card .quick-acc-btn { background: #303030; border-color: #626262; }
-[data-theme="dark"] .school-login-card .quick-acc-btn:hover { background: #383838; border-color: #9bbcff; }
-[data-theme="dark"] .school-login-card .quick-acc-btn .title { color: #f6f6f6; }
-[data-theme="dark"] .school-login-card .quick-acc-btn .sub { color: #c2c2c2; }
-[data-theme="dark"] .school-role-symbol { background: #203353; color: #bdd2ff; }
-[data-theme="dark"] .school-login-card .school-login-note { color: #c2c2c2; }
-[data-theme="dark"] .school-gate a:focus-visible { outline-color: #9bbcff; }
-[data-theme="dark"] .school-gate button:focus-visible { outline-color: #9bbcff; }
-
 </style>
+<link rel="stylesheet" href="/assets/platform-theme.css">
 </head>
 <body>
 
@@ -2605,7 +2518,7 @@ function renderDashboardView(c) {
 
     <!-- KPI FINTECH METRICS -->
     <div class="kpi-grid">
-      <div class="kpi-card" style="--kpi-color: #6366f1; --kpi-bg: rgba(99, 102, 241, 0.15)">
+      <div class="kpi-card" style="--kpi-color: var(--accent-purple); --kpi-bg: var(--accent-purple-soft)">
         <div class="kpi-header">
           <span class="kpi-title">إجمالي الطلاب المقيدين</span>
           <div class="kpi-icon">${getSvgIcon('students')}</div>
@@ -2616,7 +2529,7 @@ function renderDashboardView(c) {
         </div>
       </div>
 
-      <div class="kpi-card" style="--kpi-color: #10b981; --kpi-bg: rgba(16, 185, 129, 0.15)">
+      <div class="kpi-card" style="--kpi-color: var(--accent-teal); --kpi-bg: var(--accent-teal-soft)">
         <div class="kpi-header">
           <span class="kpi-title">قيمة الاشتراكات (مسدد / جزئي)</span>
           <div class="kpi-icon">${getSvgIcon('receipt')}</div>
@@ -2627,7 +2540,7 @@ function renderDashboardView(c) {
         </div>
       </div>
 
-      <div class="kpi-card" style="--kpi-color: #3b82f6; --kpi-bg: rgba(59, 130, 246, 0.15)">
+      <div class="kpi-card" style="--kpi-color: var(--accent-blue); --kpi-bg: var(--accent-blue-soft)">
         <div class="kpi-header">
           <span class="kpi-title">الحصص الجارية الآن</span>
           <div class="kpi-icon">${getSvgIcon('calendar')}</div>
@@ -2639,7 +2552,7 @@ function renderDashboardView(c) {
         </div>
       </div>
 
-      <div class="kpi-card" style="--kpi-color: #f59e0b; --kpi-bg: rgba(245, 158, 11, 0.15)">
+      <div class="kpi-card" style="--kpi-color: var(--accent-amber); --kpi-bg: var(--accent-amber-soft)">
         <div class="kpi-header">
           <span class="kpi-title">المجموعات وهيئة التدريس</span>
           <div class="kpi-icon">${getSvgIcon('teachers')}</div>
@@ -3412,11 +3325,11 @@ function renderTeacherPortalView(c) {
     </div>
 
     <div class="kpi-grid">
-      <div class="kpi-card" style="--kpi-color: #6366f1; --kpi-bg: rgba(99, 102, 241, 0.15)">
+      <div class="kpi-card" style="--kpi-color: var(--accent-purple); --kpi-bg: var(--accent-purple-soft)">
         <div class="kpi-header"><span class="kpi-title">مجموعاتي النشطة</span></div>
         <div class="kpi-value">${STATE.groups.length} <span style="font-size:14px;color:var(--tx-dim)">مجموعات</span></div>
       </div>
-      <div class="kpi-card" style="--kpi-color: #10b981; --kpi-bg: rgba(16, 185, 129, 0.15)">
+      <div class="kpi-card" style="--kpi-color: var(--accent-teal); --kpi-bg: var(--accent-teal-soft)">
         <div class="kpi-header"><span class="kpi-title">حصتي القادمة اليوم</span></div>
         <div class="kpi-value" style="font-size:20px">راجع جدول الحصص المسجل</div>
       </div>
