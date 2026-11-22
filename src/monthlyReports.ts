@@ -78,6 +78,16 @@ export function registerMonthlyReportRoutes(app: FastifyInstance) {
     });
   }
 
+  // Choosing an exam for grading requires grade permission, not scheduling permission.
+  app.get('/api/center/grades/exams', async (request, reply) => {
+    const user = await requireUser(request, reply); if (!user) return;
+    if (!user.centerId || ['STUDENT', 'GUARDIAN'].includes(user.role) || !(await authorize(user.id, 'academic.manage_grades', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
+    const query = z.object({ month: monthSchema }).strict().safeParse(request.query);
+    if (!query.success) return reply.code(422).send({ error: 'INVALID_INPUT' });
+    const exams = await prisma.exam.findMany({ where: { publishedAt: null, date: monthRange(query.data.month), group: assignedGroupScope(user) }, include: { group: { include: learningGroupInclude } }, orderBy: [{ date: 'desc' }, { id: 'asc' }], take: 200 });
+    return { exams: exams.map(exam => ({ id: exam.id, title: exam.title, date: exam.date, maxScore: exam.maxScore, ...groupLabel(exam.group, user.centerId!) })), limit: 200, canManageExams: await authorize(user.id, 'academic.manage_exams', { centerId: user.centerId }) };
+  });
+
   // The group picker must not depend on a successful grade-history read.
   app.get('/api/center/grades/groups', async (request, reply) => {
     const user = await requireUser(request, reply); if (!user) return;
@@ -133,4 +143,4 @@ export function registerMonthlyReportRoutes(app: FastifyInstance) {
     if (!result) return reply.code(422).send({ error: 'INVALID_ENROLLMENT' });
     return reply.code(201).send({ grade: { id: result.id, studentId: result.studentId, groupId: result.groupId, title: result.title, assessedOn: result.assessedOn, score: result.score, maxScore: result.maxScore } });
   });
-      }
+            }
