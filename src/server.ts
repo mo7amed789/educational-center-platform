@@ -131,8 +131,11 @@ export function buildApp() {
     const user = await requireUser(request, reply); if (!user) return;
     if (!user.centerId || !(await authorize(user.id, 'settings.manage', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
     try {
-      const summary = await migrateLegacyData(request.body, user.centerId);
-      await prisma.auditLog.create({ data: { centerId: user.centerId, userId: user.id, action: 'legacy.import', entity: 'LegacyData', metadata: JSON.stringify(summary) } });
+      const summary = await prisma.$transaction(async (tx) => {
+        const summary = await migrateLegacyData(request.body, user.centerId!, tx);
+        await tx.auditLog.create({ data: { centerId: user.centerId, userId: user.id, action: 'legacy.import', entity: 'LegacyData', metadata: JSON.stringify(summary) } });
+        return summary;
+      });
       return { summary };
     } catch { return reply.code(422).send({ error: 'INVALID_LEGACY_DATA' }); }
   });
@@ -180,13 +183,19 @@ export function buildApp() {
       pay: {},
     };
     try {
-      const summary = await migrateLegacyData(data, user.centerId);
-      const subscriptions = sheetRows(['subscriptions', 'الاشتراكات']).map((row) => ({ studentId: numberValue(row, ['studentId', 'رقم الطالب']), groupId: numberValue(row, ['groupId', 'رقم المجموعة']), month: textValue(row, ['month', 'الشهر']), amount: numberValue(row, ['amount', 'المبلغ']), discount: numberValue(row, ['discount', 'الخصم']), dueOn: textValue(row, ['dueOn', 'dueDate', 'تاريخ الاستحقاق']), status: textValue(row, ['status', 'الحالة']) || 'pending' })).filter((row) => row.studentId && row.groupId && /^\d{4}-\d{2}$/.test(row.month));
-      for (const item of subscriptions) {
-        await prisma.subscription.upsert({ where: { studentId_groupId_month: { studentId: item.studentId, groupId: item.groupId, month: item.month } }, update: item, create: item });
-      }
-      await prisma.auditLog.create({ data: { centerId: user.centerId, userId: user.id, action: 'excel.import', entity: 'Workbook', metadata: JSON.stringify({ filename: upload.filename, subscriptions: subscriptions.length, summary }) } });
-      return { summary: { ...summary, subscriptions: subscriptions.length }, sheets: workbook.worksheets.map((sheet) => sheet.name) };
+      const result = await prisma.$transaction(async (tx) => {
+        const summary = await migrateLegacyData(data, user.centerId!, tx);
+        const subscriptions = sheetRows(['subscriptions', 'الاشتراكات']).map((row) => ({ studentId: numberValue(row, ['studentId', 'رقم الطالب']), groupId: numberValue(row, ['groupId', 'رقم المجموعة']), month: textValue(row, ['month', 'الشهر']), amount: numberValue(row, ['amount', 'المبلغ']), discount: numberValue(row, ['discount', 'الخصم']), dueOn: textValue(row, ['dueOn', 'dueDate', 'تاريخ الاستحقاق']), status: textValue(row, ['status', 'الحالة']) || 'pending' }));
+        const validated = z.array(z.object({ studentId: z.number().int().positive(), groupId: z.number().int().positive(), month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/), amount: z.number().int().nonnegative(), discount: z.number().int().nonnegative(), dueOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), status: z.enum(['paid', 'partial', 'pending', 'overdue']) }).refine((row) => row.discount <= row.amount)).parse(subscriptions);
+        for (const item of validated) {
+          const enrolled = await tx.enrollment.findFirst({ where: { studentId: item.studentId, groupId: item.groupId, student: { centerId: user.centerId! }, group: { centerId: user.centerId! } } });
+          if (!enrolled) throw new Error('INVALID_ENROLLMENT');
+          await tx.subscription.upsert({ where: { studentId_groupId_month: { studentId: item.studentId, groupId: item.groupId, month: item.month } }, update: item, create: item });
+        }
+        await tx.auditLog.create({ data: { centerId: user.centerId, userId: user.id, action: 'excel.import', entity: 'Workbook', metadata: JSON.stringify({ filename: upload.filename, subscriptions: validated.length, summary }) } });
+        return { summary: { ...summary, subscriptions: validated.length }, sheets: workbook.worksheets.map((sheet) => sheet.name) };
+      });
+      return result;
     } catch {
       return reply.code(422).send({ error: 'INVALID_EXCEL_DATA', message: 'راجع أسماء الأوراق والأعمدة المطلوبة' });
     }
@@ -578,13 +587,18 @@ export function buildApp() {
     const user = await requireUser(request, reply); if (!user) return;
     if (!user.centerId || !(await authorize(user.id, 'teachers.delete', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
     const params = z.object({ id: z.coerce.number().int().positive() }).parse(request.params);
-    const groupCount = await prisma.group.count({ where: { teacherId: params.id, centerId: user.centerId } });
-    if (groupCount > 0) return reply.code(422).send({ error: 'TEACHER_HAS_ACTIVE_GROUPS', message: 'لا يمكن حذف مدرس مرتبط بمجموعات دراسية نشطة' });
-
-    await prisma.teacher.delete({ where: { id: params.id } });
-    await prisma.auditLog.create({
-      data: { centerId: user.centerId, userId: user.id, action: 'teachers.delete', entity: 'Teacher', entityId: String(params.id) },
+    const outcome = await prisma.$transaction(async (tx) => {
+      const teacher = await tx.teacher.findFirst({ where: { id: params.id, centerId: user.centerId! }, select: { id: true } });
+      if (!teacher) return 'missing';
+      const groupCount = await tx.group.count({ where: { teacherId: teacher.id } });
+      if (groupCount > 0) return 'linked';
+      const deleted = await tx.teacher.deleteMany({ where: { id: teacher.id, centerId: user.centerId! } });
+      if (!deleted.count) return 'missing';
+      await tx.auditLog.create({ data: { centerId: user.centerId, userId: user.id, action: 'teachers.delete', entity: 'Teacher', entityId: String(teacher.id) } });
+      return 'deleted';
     });
+    if (outcome === 'missing') return reply.code(404).send({ error: 'TEACHER_NOT_FOUND' });
+    if (outcome === 'linked') return reply.code(422).send({ error: 'TEACHER_HAS_ACTIVE_GROUPS', message: 'لا يمكن حذف مدرس مرتبط بمجموعات دراسية نشطة' });
     return { ok: true };
   });
 
@@ -726,38 +740,46 @@ export function buildApp() {
       note: z.string().trim().max(300).optional(),
     }).parse(request.body);
 
-    const group = await prisma.group.findFirst({ where: { id: input.groupId, centerId: user.centerId }, select: { id: true, price: true } });
-    if (!group) return reply.code(422).send({ error: 'GROUP_NOT_FOUND' });
+    const result = await prisma.$transaction(async (tx) => {
+      const enrollment = await tx.enrollment.findFirst({ where: { studentId: input.studentId, groupId: input.groupId, student: { centerId: user.centerId! }, group: { centerId: user.centerId! } }, include: { group: { select: { id: true, price: true } } } });
+      if (!enrollment) return null;
+      const group = enrollment.group;
+      const ref = input.reference || `REC-${Date.now().toString().slice(-6)}-${input.studentId}`;
+      const payment = await tx.payment.upsert({
+        where: { studentId_groupId_month: { studentId: input.studentId, groupId: input.groupId, month: input.month } },
+        update: { amount: input.amount, status: 'paid', reference: `${ref} [${input.method}]` },
+        create: { studentId: input.studentId, groupId: input.groupId, month: input.month, amount: input.amount, status: 'paid', reference: `${ref} [${input.method}]` },
+      });
 
-    const ref = input.reference || `REC-${Date.now().toString().slice(-6)}-${input.studentId}`;
-    const payment = await prisma.payment.upsert({
-      where: { studentId_groupId_month: { studentId: input.studentId, groupId: input.groupId, month: input.month } },
-      update: { amount: input.amount, status: 'paid', reference: `${ref} [${input.method}]` },
-      create: { studentId: input.studentId, groupId: input.groupId, month: input.month, amount: input.amount, status: 'paid', reference: `${ref} [${input.method}]` },
+      const isFull = input.amount >= group.price;
+      const status = isFull ? 'paid' : 'partial';
+      const subscription = await tx.subscription.upsert({
+        where: { studentId_groupId_month: { studentId: input.studentId, groupId: input.groupId, month: input.month } },
+        update: { status, amount: group.price, discount: isFull ? 0 : group.price - input.amount },
+        create: { studentId: input.studentId, groupId: input.groupId, month: input.month, amount: group.price, discount: 0, dueOn: `${input.month}-10`, status },
+      });
+
+      await tx.auditLog.create({
+        data: { centerId: user.centerId, userId: user.id, action: 'finance.payment', entity: 'Payment', entityId: payment.id, metadata: JSON.stringify({ amount: input.amount, method: input.method, studentId: input.studentId, groupId: input.groupId }) },
+      });
+
+      return { payment, subscription, receiptNumber: ref };
     });
-
-    const isFull = input.amount >= group.price;
-    const status = isFull ? 'paid' : 'partial';
-    const subscription = await prisma.subscription.upsert({
-      where: { studentId_groupId_month: { studentId: input.studentId, groupId: input.groupId, month: input.month } },
-      update: { status, amount: group.price, discount: isFull ? 0 : group.price - input.amount },
-      create: { studentId: input.studentId, groupId: input.groupId, month: input.month, amount: group.price, discount: 0, dueOn: `${input.month}-10`, status },
-    });
-
-    await prisma.auditLog.create({
-      data: { centerId: user.centerId, userId: user.id, action: 'finance.payment', entity: 'Payment', entityId: payment.id, metadata: JSON.stringify({ amount: input.amount, method: input.method, studentId: input.studentId, groupId: input.groupId }) },
-    });
-
-    return { payment, subscription, receiptNumber: ref };
+    if (!result) return reply.code(422).send({ error: 'INVALID_ENROLLMENT' });
+    return result;
   });
 
   app.get('/api/center/payments', async (request, reply) => {
     const user = await requireUser(request, reply); if (!user) return;
     if (!user.centerId || !(await authorize(user.id, 'finance.view', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
     const query = z.object({ month: z.string().regex(/^\d{4}-\d{2}$/).optional(), limit: z.coerce.number().int().min(1).max(500).default(100) }).parse(request.query);
+    const studentScope = { centerId: user.centerId,
+      ...(user.role === 'STUDENT' ? { userId: user.id } : {}),
+      ...(user.role === 'GUARDIAN' ? { guardianLinks: { some: { guardian: { userId: user.id, centerId: user.centerId } } } } : {}),
+    };
     const payments = await prisma.payment.findMany({
-      where: { group: { centerId: user.centerId }, ...(query.month ? { month: query.month } : {}) },
-      include: { student: true, group: { include: { teacher: true } } },
+      where: { student: studentScope, group: { centerId: user.centerId }, ...(query.month ? { month: query.month } : {}) },
+      include: { student: { select: { id: true, name: true } }, group: { select: { id: true, grade: true, price: true } } },
       orderBy: { createdAt: 'desc' },
       take: query.limit,
     });
@@ -908,4 +930,4 @@ if (process.env.NODE_ENV !== 'test') {
   assertProductionConfig();
   const port = Number(process.env.PORT ?? 3000);
   buildApp().listen({ port, host: process.env.HOST ?? '127.0.0.1' }).catch(async (error) => { console.error(error); await prisma.$disconnect(); process.exit(1); });
-}
+      }
