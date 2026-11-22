@@ -93,12 +93,12 @@ describe('fixed pupil code in an explicitly selected class and day', () => {
     try { expect([403, 404]).toContain((await roster('manager')).statusCode); expect([403, 404]).toContain((await scan(undefined, undefined, undefined, 'manager')).statusCode); }
     finally { await prisma.branchMembership.delete({ where: { userId_branchId: { userId: users.manager, branchId: branchA } } }); }
   });
-  it('keeps teacher reads and shared-pupil scans inside their assigned class', async () => {
-    expect((await roster('teacher')).statusCode).toBe(200); expect((await scan(undefined, groupA, '2026-11-26', 'teacher')).statusCode).toBe(200);
-    expect((await roster('teacher', groupB)).statusCode).toBe(404); expect((await scan(undefined, groupB, '2026-11-26', 'teacher')).statusCode).toBe(404);
-    expect((await record('teacher', groupB, pupil)).statusCode).toBe(404);
+  it('keeps teacher reads assigned and denies all teacher recording', async () => {
+    expect((await roster('teacher')).statusCode).toBe(200); expect((await scan(undefined, groupA, '2026-11-26', 'teacher')).statusCode).toBe(403);
+    expect((await roster('teacher', groupB)).statusCode).toBe(404); expect((await scan(undefined, groupB, '2026-11-26', 'teacher')).statusCode).toBe(403);
+    expect((await record('teacher', groupB, pupil)).statusCode).toBe(403);
   });
-  it.each(['unlinkedTeacher', 'badTeacher'])('does not trust a missing or cross-center teacher profile for %s', async (who) => { expect((await roster(who, corruptGroup)).statusCode).toBe(404); expect((await scan(undefined, corruptGroup, '2026-11-26', who)).statusCode).toBe(404); });
+  it.each(['unlinkedTeacher', 'badTeacher'])('does not trust a missing or cross-center teacher profile for %s', async (who) => { expect((await roster(who, corruptGroup)).statusCode).toBe(404); expect((await scan(undefined, corruptGroup, '2026-11-26', who)).statusCode).toBe(403); });
   it.each(['student', 'guardian'])('exposes only self/linked pupils in the roster for %s and never enables self-marking', async (who) => {
     const result = await roster(who); expect(result.statusCode).toBe(200); expect(result.json().students.map((row: {id:number}) => row.id)).toEqual([pupil]);
     expect((await roster(who, groupA2)).statusCode).toBe(404);
@@ -136,4 +136,47 @@ describe('fixed pupil code in an explicitly selected class and day', () => {
     const html = readFileSync('center-admin-v2.html', 'utf8'); const view = html.slice(html.indexOf('/* 7. ATTENDANCE MATRIX VIEW'), html.indexOf('/* 8. FINTECH'));
     expect(view).toContain('/api/center/attendance/selected?groupId='); expect(view).toContain("'/api/center/attendance/selected/'"); expect(view).not.toContain('STATE.students'); expect(view).not.toContain('/api/center/attendance/scan'); expect(view).toContain('لم يسجل بعد'); expect(view).toContain('Promise.allSettled');
   });
+  it('rejects teacher writes through every attendance entry point, including import permission overrides', async () => {
+    const permissions = ['attendance.create', 'attendance.update', 'settings.manage'];
+    for (const permissionKey of permissions) await prisma.userPermission.create({ data: { userId: users.teacher, permissionKey, allowed: true } });
+    const before = await prisma.attendance.count(), audits = await prisma.auditLog.count();
+    try {
+      for (const [url, body] of [
+        ['/api/center/attendance', { studentId: pupil, groupId: groupA, date: '2026-12-02', status: 'ABSENT' }],
+        ['/api/center/attendance/scan', { code: String(pupil) }],
+        ['/api/center/attendance/selected/scan', { code: String(pupil), groupId: groupA, date: '2026-12-02' }],
+        ['/api/center/attendance/selected/record', { studentId: pupil, groupId: groupA, date: '2026-12-02', status: 'PRESENT' }],
+        ['/api/legacy/import', { att: { [groupA + '|2026-12-02']: { [pupil]: 'a' } } }],
+        ['/api/import/excel', {}],
+      ] as const) expect((await request('POST', url, body, 'teacher')).statusCode, url).toBe(403);
+      expect(await prisma.attendance.count()).toBe(before); expect(await prisma.auditLog.count()).toBe(audits);
+    } finally { await prisma.userPermission.deleteMany({ where: { userId: users.teacher, permissionKey: { in: permissions } } }); }
+  });
+  it('returns daily counts and only explicitly absent names in the current teacher roster', async () => {
+    const day = '2026-12-01';
+    for (const [offset, status] of ['PRESENT', 'LATE', 'EXCUSED', 'unrecognized', null].entries()) {
+      const studentId = 979001 + offset; await prisma.student.create({ data: { id: studentId, centerId: center, name: 'Summary pupil ' + offset, phone: 'not-for-summary' } });
+      await prisma.enrollment.create({ data: { studentId, groupId: groupA } });
+      if (status) await prisma.attendance.create({ data: { studentId, groupId: groupA, date: day, status } });
+    }
+    for (const [studentId, groupId, status] of [[pupil, groupA, 'a'], [ownOnly, groupA, 'p'], [foreignPupil, groupA, 'ABSENT'], [siblingPupil, groupB, 'ABSENT'], [pupil, groupB, 'ABSENT']] as const) await prisma.attendance.create({ data: { studentId, groupId, date: day, status } });
+    const res = await request('GET', '/api/center/attendance/teacher-summary?date=' + day, undefined, 'teacher'); expect(res.statusCode).toBe(200);
+    const body = res.json(); expect(body.basis).toBe('CURRENT_ENROLLMENTS'); expect(body.availableGroups.map((group: { id: number }) => group.id)).toEqual([groupA, groupA2]);
+    expect(body.summary).toEqual({ total: 8, present: 2, absent: 1, late: 1, excused: 1, unknown: 1, unrecorded: 2 });
+    expect(body.absentees).toEqual([{ id: pupil, name: 'Pupil ' + pupil, groupId: groupA, group: 'Class ' + groupA }]); expect(JSON.stringify(body)).not.toMatch(/not-for-summary|phone|parent|price/);
+    const filtered = await request('GET', '/api/center/attendance/teacher-summary?date=' + day + '&groupId=' + groupA2, undefined, 'teacher'); expect(filtered.json().summary.total).toBe(0); expect(filtered.json().absentees).toEqual([]);
+    expect((await request('GET', '/api/center/attendance/teacher-summary?date=2026-12-03', undefined, 'teacher')).json().summary).toMatchObject({ total: 8, absent: 0, unrecorded: 8 });
+  });
+  it.each([groupB, groupForeign, corruptGroup])('does not expose an unassigned summary group %s', async groupId => { expect((await request('GET', '/api/center/attendance/teacher-summary?date=2026-12-01&groupId=' + groupId, undefined, 'teacher')).statusCode).toBe(404); });
+  it.each(['student', 'guardian', 'owner', 'nobody'])('does not expose the teacher summary to %s', async who => { expect((await request('GET', '/api/center/attendance/teacher-summary?date=2026-12-01', undefined, who)).statusCode).toBe(who === 'nobody' ? 401 : 403); });
+  it.each(['', '?date=2026-02-30', '?date=2026-13-01', '?date=2026-12-01&centerId=other'])('validates teacher summary selection %s', async query => { expect((await request('GET', '/api/center/attendance/teacher-summary' + query, undefined, 'teacher')).statusCode).toBe(422); });
+  it('rechecks teacher assignment and active membership for every summary read', async () => {
+    await prisma.group.update({ where: { id: groupA }, data: { teacherId: 970202 } });
+    try { expect((await request('GET', '/api/center/attendance/teacher-summary?date=2026-12-01&groupId=' + groupA, undefined, 'teacher')).statusCode).toBe(404); }
+    finally { await prisma.group.update({ where: { id: groupA }, data: { teacherId: 970201 } }); }
+    await prisma.centerMembership.update({ where: { userId_centerId: { userId: users.teacher, centerId: center } }, data: { active: false } });
+    try { expect((await request('GET', '/api/center/attendance/teacher-summary?date=2026-12-01', undefined, 'teacher')).statusCode).toBe(403); }
+    finally { await prisma.centerMembership.update({ where: { userId_centerId: { userId: users.teacher, centerId: center } }, data: { active: true } }); }
+  });
+
 });
