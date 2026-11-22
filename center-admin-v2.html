@@ -2203,6 +2203,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 <div class="snackbar-container" id="snackbarContainer"></div>
 
 <script src="/assets/exam-grade-entry.js"></script>
+<script src="/assets/teacher-attendance.js"></script>
 <script>
 /* ==========================================================================
    STATE & CORE CONFIGURATION
@@ -3058,7 +3059,7 @@ function handleKioskScan(e) {
 }
 
 /* 7. ATTENDANCE MATRIX VIEW: fixed pupil code, explicit selected group/date. */
-function newAttendancePage() { return { groupId: '', date: localReportDate(), rows: [], key: '', sequence: 0, loading: false, busy: false, code: '', message: '', error: '' }; }
+function newAttendancePage() { return { teacherSummary: null, groupId: '', date: localReportDate(), rows: [], key: '', sequence: 0, loading: false, busy: false, code: '', message: '', error: '' }; }
 var ATTENDANCE_PAGE = newAttendancePage();
 function attendanceKey() { return ATTENDANCE_PAGE.groupId + ':' + ATTENDANCE_PAGE.date; }
 function attendanceCurrent(state, userId, key) { return ATTENDANCE_PAGE === state && STATE.currentUser && STATE.currentUser.id === userId && attendanceKey() === key; }
@@ -3075,6 +3076,7 @@ function attendanceError(error) {
   return { INVALID_INPUT: 'راجع الكود والمجموعة والتاريخ.', INVALID_SELECTION: 'اختر مجموعة وتاريخا صحيحين.', INVALID_STUDENT_CODE: 'اكتب رقم الطالب أو الكود بالشكل STUDENT:1001.', GROUP_NOT_FOUND: 'المجموعة غير متاحة ضمن صلاحياتك.', STUDENT_NOT_ENROLLED: 'الكود غير مقيد في المجموعة المختارة. لم يسجل حضور.', FORBIDDEN: 'حسابك لا يملك صلاحية هذا الإجراء.' }[error.message] || 'تعذر إتمام الطلب. حاول مرة أخرى.';
 }
 function renderAttendanceView(c) {
+  if (STATE.currentRole === 'TEACHER') { renderTeacherAttendanceView(c); return; }
   var state = ATTENDANCE_PAGE;
   if (state.groupId && !STATE.groups.some(function(group) { return String(group.id) === state.groupId; })) { state.groupId = ''; state.rows = []; state.key = ''; state.sequence++; state.loading = false; }
   c.innerHTML = '<div class="view-header"><div class="view-title-group"><h1>سجل الحضور والغياب اليومي</h1><p>كود واحد ثابت للطالب في كل مجموعاته. اختر المجموعة واليوم قبل المسح.</p></div><div class="view-actions"><div class="field"><label for="attDateInput">يوم الحضور</label><input type="date" id="attDateInput" min="1900-01-01" max="2199-12-31" value="' + safeText(state.date) + '" onchange="attendanceSelectionChanged()"></div><div class="field"><label for="attGroupSelect">المجموعة المخصصة</label><select id="attGroupSelect" onchange="attendanceSelectionChanged()"><option value="">اختر المجموعة</option>' + STATE.groups.map(function(g) { return '<option value="' + g.id + '"' + (String(g.id) === state.groupId ? ' selected' : '') + '>مجموعة #' + g.id + ' - ' + safeText(g.grade) + ' (' + safeText(g.time) + ')</option>'; }).join('') + '</select></div></div></div>' +
@@ -3111,6 +3113,7 @@ function drawAttendanceRoster() {
   setAttendanceBusy(state.busy);
 }
 function refreshAttendanceTable() {
+  if (STATE.currentRole === 'TEACHER') return loadTeacherAttendanceSummary();
   var state = ATTENDANCE_PAGE, key = attendanceKey(), sequence = ++state.sequence, userId = STATE.currentUser && STATE.currentUser.id;
   state.rows = []; state.error = '';
   if (!state.groupId || !state.date) { state.loading = false; drawAttendanceRoster(); return Promise.resolve(); }
@@ -3123,6 +3126,7 @@ function refreshAttendanceTable() {
   }).finally(function() { if (attendanceCurrent(state, userId, key) && sequence === state.sequence) { state.loading = false; drawAttendanceRoster(); } });
 }
 function selectedAttendanceWrite(payload, scan) {
+  if (STATE.currentRole === 'TEACHER') return Promise.resolve();
   var state = ATTENDANCE_PAGE, key = attendanceKey(), userId = STATE.currentUser && STATE.currentUser.id;
   if (state.busy || !state.groupId || !state.date) return Promise.resolve();
   state.busy = true; state.message = 'جارٍ تسجيل الحضور...'; setAttendanceBusy(true);
@@ -3143,6 +3147,7 @@ function selectedAttendanceWrite(payload, scan) {
 function scanSelectedAttendance(event) { event.preventDefault(); selectedAttendanceWrite({ code: document.getElementById('attStudentCode').value.trim() }, true); return false; }
 function recordAttendanceDirect(studentId, status) { return selectedAttendanceWrite({ studentId: studentId, status: status }, false); }
 function bulkMarkAttendance(status) {
+  if (STATE.currentRole === 'TEACHER') return Promise.resolve();
   var state = ATTENDANCE_PAGE, key = attendanceKey(), userId = STATE.currentUser && STATE.currentUser.id;
   if (state.busy || state.loading || state.key !== key || !state.rows.length) return;
   state.busy = true; setAttendanceBusy(true);
@@ -3383,7 +3388,7 @@ function renderStaffView(c) {
             <tr>
               <td><strong>👨‍🏫 المعلم (Teacher)</strong></td>
               <td><span class="badge badge-info">طلابه فقط</span></td>
-              <td><span class="badge badge-success">حصصه فقط</span></td>
+              <td><span class="badge badge-info">إحصائيات وأسماء الغائبين فقط</span></td>
               <td><span class="badge badge-danger">ممنوع</span></td>
               <td><span class="badge badge-danger">ممنوع</span></td>
               <td><span class="badge badge-danger">ممنوع</span></td>
@@ -3402,7 +3407,7 @@ function renderTeacherPortalView(c) {
     <div class="view-header">
       <div class="view-title-group">
         <h1>بوابة المدرس: ${STATE.currentUser ? STATE.currentUser.name : teacher.name}</h1>
-        <p>جدول حصصك الأسبوعية، تسجيل الحضور لمجموعاتك، ومتابعة حضور طلابك</p>
+        <p>جدول حصصك الأسبوعية، إحصائيات الحضور وأسماء الغائبين في مجموعاتك</p>
       </div>
     </div>
 
@@ -3418,7 +3423,7 @@ function renderTeacherPortalView(c) {
     </div>
 
     <div class="panel">
-      <h3 class="panel-title">حصصي المخصصة لتسجيل الحضور</h3>
+      <h3 class="panel-title">مجموعاتي ومتابعة الغياب</h3>
       <div class="table-wrapper" style="margin-top:14px">
         <table class="data-table">
           <thead>
@@ -3436,7 +3441,7 @@ function renderTeacherPortalView(c) {
                   <td><strong>${g.grade}</strong></td>
                   <td>${g.days}</td>
                   <td><span style="font-family:var(--font-num)">${g.time}</span></td>
-                  <td><button class="btn btn-sm btn-success" onclick="switchView('attendance')">تسجيل حضور الطلاب</button></td>
+                  <td><button class="btn btn-sm btn-success" onclick="switchView('attendance')">متابعة الحضور والغياب</button></td>
                 </tr>
               `;
             }).join('')}
@@ -4762,4 +4767,4 @@ window.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 </body>
-  </html>
+   </html>
