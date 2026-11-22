@@ -47,6 +47,11 @@ export function buildApp() {
     const html = await readFile(path.join(process.cwd(), 'center-admin-v2.html'), 'utf8');
     return reply.type('text/html; charset=utf-8').send(html);
   });
+  app.get('/assets/exam-grade-entry.js', async (_request, reply) => {
+    const script = await readFile(path.join(process.cwd(), 'assets/exam-grade-entry.js'), 'utf8');
+    return reply.type('application/javascript; charset=utf-8').send(script);
+  });
+
   app.get('/center-admin-v2.html', async (_request, reply) => {
     const html = await readFile(path.join(process.cwd(), 'center-admin-v2.html'), 'utf8');
     return reply.type('text/html; charset=utf-8').send(html);
@@ -836,4 +841,4 @@ if (process.env.NODE_ENV !== 'test') {
     await prisma.$disconnect().catch(() => undefined);
     process.exit(1);
   });
-      }
+                                         }

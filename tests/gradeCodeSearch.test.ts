@@ -6,7 +6,7 @@ const bootstrap = html.slice(html.indexOf('function newGradeEntry()'), html.inde
 const code = html.slice(html.indexOf('function gradeEntryError('), html.indexOf('function renderGradesView('));
 function setup(api: (url: string) => Promise<unknown> = async () => ({ students: [{ id: 123, name: 'Assigned student' }] })) {
   const context: any = { STATE: { currentUser: { id: 'teacher' }, students: [{ id: 999, name: 'Unrelated cached pupil' }] }, localReportDate: () => '2026-11-22', safeText: (s: unknown) => String(s ?? ''), refreshMonthlyView() {}, api };
-  runInNewContext(bootstrap + code, context); context.GRADE_ENTRY = context.newGradeEntry(); context.GRADE_ENTRY.draft.groupId = '101'; return context;
+  runInNewContext(bootstrap + code, context); context.GRADE_ENTRY = context.newGradeEntry(); context.GRADE_ENTRY.mode = 'general'; context.GRADE_ENTRY.draft.groupId = '101'; return context;
 }
 describe('grade student code lookup', () => {
   it.each(['123', '#123', 'STUDENT:123', ' student:123 ', '١٢٣', '#۱۲۳'])('recognizes the fixed code %s', input => {
