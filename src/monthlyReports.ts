@@ -80,7 +80,7 @@ export function registerMonthlyReportRoutes(app: FastifyInstance) {
 
   app.get('/api/center/grades/enrollments', async (request, reply) => {
     const user = await requireUser(request, reply); if (!user) return;
-    if (!user.centerId || !(await authorize(user.id, 'academic.manage_grades', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
+    if (!user.centerId || ['STUDENT', 'GUARDIAN'].includes(user.role) || !(await authorize(user.id, 'academic.manage_grades', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
     const query = z.object({ groupId: z.coerce.number().int().positive() }).safeParse(request.query);
     if (!query.success) return reply.code(422).send({ error: 'INVALID_INPUT' });
     if (user.role === 'BRANCH_ADMIN' && !user.branchId) return reply.code(403).send({ error: 'FORBIDDEN' });
@@ -92,7 +92,7 @@ export function registerMonthlyReportRoutes(app: FastifyInstance) {
 
   app.get('/api/center/grades', async (request, reply) => {
     const user = await requireUser(request, reply); if (!user) return;
-    if (!user.centerId || !(await authorize(user.id, 'academic.manage_grades', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
+    if (!user.centerId || ['STUDENT', 'GUARDIAN'].includes(user.role) || !(await authorize(user.id, 'academic.manage_grades', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
     const query = z.object({ month: monthSchema, studentId: z.coerce.number().int().positive().optional() }).safeParse(request.query);
     if (!query.success) return reply.code(422).send({ error: 'INVALID_INPUT' });
     if (user.role === 'BRANCH_ADMIN' && !user.branchId) return reply.code(403).send({ error: 'FORBIDDEN' });
@@ -101,12 +101,13 @@ export function registerMonthlyReportRoutes(app: FastifyInstance) {
       include: { student: { select: { id: true, name: true } }, group: { include: learningGroupInclude } },
       orderBy: [{ assessedOn: 'desc' }, { createdAt: 'desc' }], take: 500,
     });
-    return { items: items.map((row) => ({ id: row.id, student: row.student, title: row.title, assessedOn: row.assessedOn, score: row.score, maxScore: row.maxScore, ...groupLabel(row.group, user.centerId!) })), limit: 500 };
+    const groups = await prisma.group.findMany({ where: assignedGroupScope(user), include: learningGroupInclude, orderBy: { id: 'asc' } });
+    return { groups: groups.map(group => groupLabel(group, user.centerId!)), items: items.map((row) => ({ id: row.id, student: row.student, title: row.title, assessedOn: row.assessedOn, score: row.score, maxScore: row.maxScore, ...groupLabel(row.group, user.centerId!) })), limit: 500 };
   });
 
   app.post('/api/center/grades', async (request, reply) => {
     const user = await requireUser(request, reply); if (!user) return;
-    if (!user.centerId || !(await authorize(user.id, 'academic.manage_grades', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
+    if (!user.centerId || ['STUDENT', 'GUARDIAN'].includes(user.role) || !(await authorize(user.id, 'academic.manage_grades', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
     const input = gradeInput.safeParse(request.body);
     if (!input.success) return reply.code(422).send({ error: 'INVALID_INPUT' });
     if (user.role === 'BRANCH_ADMIN' && !user.branchId) return reply.code(403).send({ error: 'FORBIDDEN' });
@@ -123,4 +124,4 @@ export function registerMonthlyReportRoutes(app: FastifyInstance) {
     if (!result) return reply.code(422).send({ error: 'INVALID_ENROLLMENT' });
     return reply.code(201).send({ grade: { id: result.id, studentId: result.studentId, groupId: result.groupId, title: result.title, assessedOn: result.assessedOn, score: result.score, maxScore: result.maxScore } });
   });
-          }
+  }

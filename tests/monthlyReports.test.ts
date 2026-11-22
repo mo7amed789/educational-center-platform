@@ -117,7 +117,8 @@ describe('parent monthly reports and managed grade records', () => {
   });
   it.each(['2026-00', '2026-13', '2026-1', 'wrong'])('rejects invalid month %s', async (month) => { expect((await report(childId, month)).statusCode).toBe(422); });
   it('requires authentication', async () => { expect((await app.inject({ method: 'GET', url: `/api/portal/parent/monthly-report?studentId=${childId}&month=2026-11` })).statusCode).toBe(401); });
-  it.each(['parent', 'teacher'])('does not widen grade management to %s', async (who) => { expect((await createGrade(payload, who)).statusCode).toBe(403); });
+  it.each(['parent'])('does not widen grade management to %s', async (who) => { expect((await createGrade(payload, who)).statusCode).toBe(403); });
+  it('does not give an unlinked teacher access to another class', async () => { expect((await createGrade(payload, 'teacher')).statusCode).toBe(422); });
   it.each([
     { ...payload, score: -1 }, { ...payload, score: 11 }, { ...payload, maxScore: 0 },
     { ...payload, assessedOn: '2026-02-30' }, { ...payload, assessedOn: '2026-13-01' },
