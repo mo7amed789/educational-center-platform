@@ -50,4 +50,4 @@ Verified against disposable two-center fixtures:
 - Payment recording requires a same-center enrollment. Payment, subscription update and audit are atomic. This records internal bookkeeping only, not a gateway charge.
 - Regression tests reproduce the former failures on the baseline and verify rollback with a forced audit failure.
 
-This slice is not the whole security audit. Still to review: branch-admin scope across all routes, related teacher/course/classroom/branch IDs on writes, attendance and scan scopes, nested relation disclosure, permission-denial overrides and export scope. The old payment upsert/partial-payment accounting model also needs the separate billing review before real financial use.
+This slice is not the whole security audit. The next branch/related-ID slice is documented in [RESOURCE_SCOPES.md](RESOURCE_SCOPES.md). Still to review: assigned-teacher reads and scan scope, nested relation disclosure, permission-denial overrides, export semantics and other staff roles. The old payment upsert/partial-payment accounting model also needs the separate billing review before real financial use.
