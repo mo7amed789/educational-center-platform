@@ -47,6 +47,11 @@ export function buildApp() {
     const html = await readFile(path.join(process.cwd(), 'center-admin-v2.html'), 'utf8');
     return reply.type('text/html; charset=utf-8').send(html);
   });
+  app.get('/assets/platform-theme.css', async (_request, reply) => {
+    const css = await readFile(path.join(process.cwd(), 'assets/platform-theme.css'), 'utf8');
+    return reply.type('text/css; charset=utf-8').send(css);
+  });
+
   app.get('/assets/teacher-attendance.js', async (_request, reply) => {
     const script = await readFile(path.join(process.cwd(), 'assets/teacher-attendance.js'), 'utf8');
     return reply.type('application/javascript; charset=utf-8').send(script);
@@ -846,4 +851,4 @@ if (process.env.NODE_ENV !== 'test') {
     await prisma.$disconnect().catch(() => undefined);
     process.exit(1);
   });
-                                                                                                                     }
+      }
