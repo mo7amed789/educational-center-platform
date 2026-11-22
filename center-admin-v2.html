@@ -1844,6 +1844,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .attendance-status-excused{background:#315da8;color:#ffffff}
 .attendance-status-neutral{background:#e4e5ed;color:#3d4158}
 [data-theme="dark"] .attendance-status-neutral{background:#494253;color:#f5f1ff}
+/* Grade entry keeps every saved value visible on narrow screens. */
+@media(max-width:700px) {
+ .grade-record-list .data-table { display:block; min-width:0; width:100%; }
+ .grade-record-list thead { display:none; }
+ .grade-record-list tbody,.grade-record-list tr { display:block; }
+ .grade-record-list tr { border-bottom:1px solid var(--border); padding:12px 0; }
+ .grade-record-list td { display:flex; justify-content:space-between; gap:12px; white-space:normal; overflow-wrap:anywhere; padding:7px; border:0; }
+ .grade-record-list td::before { content:attr(data-label); color:var(--tx-muted); flex-shrink:0; }
+}
+
 /* TalimSAT-inspired dark surfaces. All changes are scoped to dark mode. */
 [data-theme="dark"] {
   color-scheme: dark;
@@ -2385,7 +2395,7 @@ var ALL_TABS = [
   { id: 'kiosk', title: 'كشك المسح السريع', icon: 'scan', roles: ['SUPER_ADMIN', 'CENTER_OWNER', 'CENTER_ADMIN', 'BRANCH_ADMIN', 'RECEPTIONIST'] },
   { id: 'attendance', title: 'سجل الحضور', icon: 'check', roles: ['SUPER_ADMIN', 'CENTER_OWNER', 'CENTER_ADMIN', 'BRANCH_ADMIN', 'RECEPTIONIST', 'TEACHER'] },
   { id: 'exams', title: 'الامتحانات والنتائج', icon: 'calendar', roles: ['SUPER_ADMIN', 'CENTER_OWNER', 'CENTER_ADMIN', 'BRANCH_ADMIN', 'TEACHER'] },
-  { id: 'grades', title: 'درجات الطلاب', icon: 'chart', roles: ['SUPER_ADMIN', 'CENTER_OWNER', 'CENTER_ADMIN', 'BRANCH_ADMIN'] },
+  { id: 'grades', title: 'درجات الطلاب', icon: 'chart', roles: ['SUPER_ADMIN', 'CENTER_OWNER', 'CENTER_ADMIN', 'BRANCH_ADMIN', 'TEACHER'] },
   { id: 'subscriptions', title: 'الاشتراكات والفوترة', icon: 'receipt', roles: ['SUPER_ADMIN', 'CENTER_OWNER', 'CENTER_ADMIN', 'BRANCH_ADMIN', 'ACCOUNTANT'] },
   { id: 'reports', title: 'التقارير المالية', icon: 'chart', roles: ['SUPER_ADMIN', 'CENTER_OWNER', 'CENTER_ADMIN', 'ACCOUNTANT'] },
   { id: 'staff', title: 'الموظفون والصلاحيات', icon: 'shield', roles: ['SUPER_ADMIN', 'CENTER_OWNER', 'CENTER_ADMIN'] },
@@ -3573,7 +3583,7 @@ function localReportDate() {
 }
 function newParentReport() { return { children: [], studentId: '', month: localReportDate().slice(0, 7), date: localReportDate(), loading: true, error: '', report: null, today: [], recentGrades: [], student: null, sequence: 0 }; }
 var PARENT_REPORT = newParentReport();
-function newGradeEntry() { return { month: localReportDate().slice(0, 7), items: [], loading: false, loaded: false, error: '', sequence: 0, enrollmentSequence: 0, students: [], enrollmentLoading: false, enrollmentError: '', saving: false, message: '', draft: { groupId: '', studentId: '', title: '', assessedOn: localReportDate(), score: '', maxScore: '100' } }; }
+function newGradeEntry() { return { month: localReportDate().slice(0, 7), groups: [], items: [], loading: false, loaded: false, error: '', sequence: 0, enrollmentSequence: 0, students: [], enrollmentLoading: false, enrollmentError: '', saving: false, message: '', draft: { groupId: '', studentId: '', title: '', assessedOn: localReportDate(), score: '', maxScore: '100' } }; }
 var GRADE_ENTRY = newGradeEntry();
 function refreshMonthlyView(view) { if (STATE.activeView === view) renderActiveView(); }
 function loadParentChildren() {
@@ -3602,7 +3612,7 @@ function monthlyTable(headings, rows, emptyText) {
   rows = rows.map(function(row) { var index = 0; return row.replace(/<td>/g, function() { return '<td data-label="' + safeText(headings[index++]) + '">'; }); });
   return '<div class="table-wrapper"><table class="data-table"><thead><tr>' + headings.map(function(heading) { return '<th>' + safeText(heading) + '</th>'; }).join('') + '</tr></thead><tbody>' + rows.join('') + '</tbody></table></div>';
 }
-function monthlyCells(values) { return '<tr>' + values.map(function(value) { return '<td>' + safeText(value) + '</td>'; }).join('') + '</tr>'; }
+function monthlyCells(values, numericLast) { return '<tr>' + values.map(function(value, index) { return '<td>' + (numericLast && index === values.length - 1 ? '<span dir="ltr">' + safeText(value) + '</span>' : safeText(value)) + '</td>'; }).join('') + '</tr>'; }
 function renderParentPortalView(c) {
   var state = PARENT_REPORT, report = state.report;
   var controls = state.children.length ? '<div class="monthly-controls"><div class="field"><label for="parentChild">الابن / الابنة</label><select id="parentChild" onchange="parentFilterChanged()">' + state.children.map(function(child) { return '<option value="' + child.id + '"' + (String(child.id) === state.studentId ? ' selected' : '') + '>' + safeText(child.name) + '</option>'; }).join('') + '</select></div><div class="field"><label for="parentMonth">شهر التقرير</label><input id="parentMonth" type="month" min="1900-01" max="2199-12" value="' + safeText(state.month) + '" onchange="parentFilterChanged()"></div><div class="field"><label for="parentDate">تاريخ المتابعة</label><input id="parentDate" type="date" min="1900-01-01" max="2199-12-31" value="' + safeText(state.date) + '" onchange="parentFilterChanged()"></div><button class="btn btn-secondary" onclick="loadParentMonth()"' + (state.loading ? ' disabled' : '') + '>تحديث التقرير</button></div>' : '';
@@ -3626,42 +3636,44 @@ function monthlyLearningHtml(report) {
   html += '<details class="panel learning-history"><summary>كل درجات الشهر (' + report.grades.length + ' تقييم)</summary>' + monthlyTable(['التاريخ', 'المادة / المجموعة', 'التقييم', 'الدرجة', 'النسبة'], report.grades.map(function(grade) { return monthlyCells([grade.assessedOn, grade.subject + ' / ' + grade.group, grade.title, grade.score + ' / ' + grade.maxScore, grade.percentage + '%']); }), 'لم تسجل درجات لهذا الشهر بعد.') + '</details>';
   return html + '</section>';
 }
+function gradeEntryCurrent(state, userId) { return GRADE_ENTRY === state && STATE.currentUser && STATE.currentUser.id === userId; }
 function loadGradeRecords() {
-  var state = GRADE_ENTRY, sequence = ++state.sequence;
+  var state = GRADE_ENTRY, sequence = ++state.sequence, userId = STATE.currentUser && STATE.currentUser.id;
   state.loading = true; state.error = ''; refreshMonthlyView('grades');
   return api('/api/center/grades?month=' + encodeURIComponent(state.month)).then(function(data) {
-    if (sequence === state.sequence) { state.items = data.items || []; state.loaded = true; }
-  }).catch(function() { if (sequence === state.sequence) state.error = 'تعذر تحميل الدرجات. تأكد من صلاحياتك والشهر المختار.'; })
-    .finally(function() { if (sequence === state.sequence) { state.loading = false; refreshMonthlyView('grades'); } });
+    if (gradeEntryCurrent(state, userId) && sequence === state.sequence) { state.items = data.items || []; state.groups = data.groups || []; state.loaded = true; if (state.draft.groupId && !state.groups.some(function(group) { return String(group.groupId) === state.draft.groupId; })) { state.draft.groupId = ''; state.draft.studentId = ''; state.students = []; state.enrollmentSequence++; state.enrollmentLoading = false; } }
+  }).catch(function() { if (gradeEntryCurrent(state, userId) && sequence === state.sequence) state.error = 'تعذر تحميل الدرجات. تأكد من صلاحياتك والشهر المختار.'; })
+    .finally(function() { if (gradeEntryCurrent(state, userId) && sequence === state.sequence) { state.loading = false; refreshMonthlyView('grades'); } });
 }
 function gradeGroupChanged(value) {
-  var state = GRADE_ENTRY, sequence = ++state.enrollmentSequence;
+  var state = GRADE_ENTRY, sequence = ++state.enrollmentSequence, userId = STATE.currentUser && STATE.currentUser.id;
   state.draft.groupId = value; state.draft.studentId = ''; state.students = []; state.enrollmentError = ''; state.enrollmentLoading = !!value;
   refreshMonthlyView('grades');
   if (!value) return;
   api('/api/center/grades/enrollments?groupId=' + encodeURIComponent(value)).then(function(data) {
-    if (sequence === state.enrollmentSequence) state.students = data.students || [];
-  }).catch(function() { if (sequence === state.enrollmentSequence) state.enrollmentError = 'تعذر تحميل طلاب المجموعة. اختر مجموعة متاحة ضمن صلاحياتك.'; })
-    .finally(function() { if (sequence === state.enrollmentSequence) { state.enrollmentLoading = false; refreshMonthlyView('grades'); } });
+    if (gradeEntryCurrent(state, userId) && sequence === state.enrollmentSequence) state.students = data.students || [];
+  }).catch(function() { if (gradeEntryCurrent(state, userId) && sequence === state.enrollmentSequence) state.enrollmentError = 'تعذر تحميل طلاب المجموعة. اختر مجموعة متاحة ضمن صلاحياتك.'; })
+    .finally(function() { if (gradeEntryCurrent(state, userId) && sequence === state.enrollmentSequence) { state.enrollmentLoading = false; refreshMonthlyView('grades'); } });
 }
 function saveGradeRecord(event) {
-  event.preventDefault(); var state = GRADE_ENTRY;
+  event.preventDefault(); var state = GRADE_ENTRY, userId = STATE.currentUser && STATE.currentUser.id;
   if (state.saving) return false;
-  var form = event.target, body = { groupId: Number(form.groupId.value), studentId: Number(form.studentId.value), title: form.title.value.trim(), assessedOn: form.assessedOn.value, score: Number(form.score.value), maxScore: Number(form.maxScore.value) };
+  var form = event.target.elements, body = { groupId: Number(form.namedItem('groupId').value), studentId: Number(form.namedItem('studentId').value), title: form.namedItem('title').value.trim(), assessedOn: form.namedItem('assessedOn').value, score: Number(form.namedItem('score').value), maxScore: Number(form.namedItem('maxScore').value) };
   if (body.score > body.maxScore) { state.message = 'الدرجة لا يمكن أن تتجاوز الدرجة النهائية.'; refreshMonthlyView('grades'); return false; }
   state.saving = true; state.message = ''; refreshMonthlyView('grades');
   api('/api/center/grades', { method: 'POST', body: JSON.stringify(body) }).then(function() {
+    if (!gradeEntryCurrent(state, userId)) return;
     state.message = 'تم حفظ الدرجة وتسجيل العملية في سجل المراجعة.'; state.draft.title = ''; state.draft.score = ''; state.month = body.assessedOn.slice(0, 7);
     return loadGradeRecords();
-  }).catch(function() { state.message = 'لم يتم تأكيد الحفظ. حدّث قائمة الدرجات وتحقق منها قبل المحاولة مرة أخرى لتجنب التكرار.'; })
-    .finally(function() { state.saving = false; refreshMonthlyView('grades'); });
+  }).catch(function() { if (!gradeEntryCurrent(state, userId)) return; state.message = 'لم يتم تأكيد الحفظ. حدّث قائمة الدرجات وتحقق منها قبل المحاولة مرة أخرى لتجنب التكرار.'; })
+    .finally(function() { state.saving = false; if (gradeEntryCurrent(state, userId)) refreshMonthlyView('grades'); });
   return false;
 }
 function renderGradesView(c) {
   var state = GRADE_ENTRY, draft = state.draft;
   if (!state.loaded && !state.loading && !state.error) { loadGradeRecords(); return; }
   function input(name, title, type, attributes) { return '<div class="field"><label for="grade-' + name + '">' + title + '</label><input id="grade-' + name + '" name="' + name + '" type="' + type + '" value="' + safeText(draft[name]) + '" oninput="GRADE_ENTRY.draft[this.name]=this.value" required ' + (attributes || '') + '></div>'; }
-  c.innerHTML = '<div class="view-header"><div class="view-title-group"><span class="school-dashboard-eyebrow">✦ التقييم والمتابعة</span><h1>سجل درجات الطلاب</h1><p>أضف درجة حقيقية لطالب مقيد بالمجموعة، لتظهر في تقرير ولي الأمر لنفس الشهر.</p></div></div><section class="panel"><h2 class="panel-title">تسجيل تقييم جديد</h2><p class="monthly-note">الإضافة متاحة وفق صلاحية إدارة الدرجات الحالية. هذا الإصدار يسجل تقييمًا جديدًا فقط؛ راجع البيانات قبل الحفظ، فلا يوجد تعديل أو حذف بعد الحفظ بعد.</p><form onsubmit="return saveGradeRecord(event)"><fieldset class="monthly-fieldset"' + (state.saving ? ' disabled' : '') + '><div class="monthly-form-grid"><div class="field"><label for="grade-group">المجموعة</label><select id="grade-group" name="groupId" required onchange="gradeGroupChanged(this.value)"><option value="">اختر المجموعة</option>' + STATE.groups.map(function(group) { return '<option value="' + group.id + '"' + (String(group.id) === draft.groupId ? ' selected' : '') + '>' + safeText(group.grade) + ' #' + group.id + '</option>'; }).join('') + '</select></div><div class="field"><label for="grade-student">الطالب المقيد بالمجموعة</label><select id="grade-student" name="studentId" required onchange="GRADE_ENTRY.draft.studentId=this.value"' + (state.enrollmentLoading ? ' disabled' : '') + '><option value="">' + (state.enrollmentLoading ? 'جارٍ تحميل الطلاب...' : 'اختر الطالب') + '</option>' + state.students.map(function(student) { return '<option value="' + student.id + '"' + (String(student.id) === draft.studentId ? ' selected' : '') + '>' + safeText(student.name) + ' #' + student.id + '</option>'; }).join('') + '</select></div>' + input('title', 'اسم التقييم', 'text', 'maxlength="160"') + input('assessedOn', 'تاريخ التقييم', 'date', 'min="1900-01-01" max="2199-12-31"') + input('score', 'الدرجة المكتسبة', 'number', 'min="0" step="any"') + input('maxScore', 'الدرجة النهائية', 'number', 'min="0.000001" step="any"') + '</div>' + (state.enrollmentError ? '<p role="alert">' + safeText(state.enrollmentError) + '</p>' : '') + '<button class="btn" type="submit"' + (!draft.groupId || !state.students.length || state.enrollmentLoading ? ' disabled' : '') + '>' + (state.saving ? 'جارٍ الحفظ...' : 'حفظ الدرجة') + '</button></fieldset></form><p role="status" class="monthly-note">' + safeText(state.message) + '</p></section><section class="panel"><div class="monthly-controls"><h2 class="panel-title">درجات الشهر</h2><div class="field"><label for="gradesMonth">الشهر</label><input id="gradesMonth" type="month" min="1900-01" max="2199-12" value="' + safeText(state.month) + '" onchange="GRADE_ENTRY.month=this.value;loadGradeRecords()"></div><button class="btn btn-secondary" onclick="loadGradeRecords()"' + (state.loading ? ' disabled' : '') + '>تحديث القائمة</button></div><p class="panel-subtitle">أحدث 500 تقييم للشهر المختار ضمن نطاق صلاحياتك.</p>' + (state.error ? '<p role="alert">' + safeText(state.error) + '</p>' : state.loading ? '<p role="status">جارٍ تحميل الدرجات...</p>' : monthlyTable(['الطالب', 'المادة / المجموعة', 'التقييم', 'التاريخ', 'الدرجة'], state.items.map(function(grade) { return monthlyCells([grade.student.name, grade.subject + ' / ' + grade.group, grade.title, grade.assessedOn, grade.score + ' / ' + grade.maxScore]); }), 'لا توجد درجات مسجلة في هذا الشهر.')) + '</section>';
+  c.innerHTML = '<div class="view-header"><div class="view-title-group"><span class="school-dashboard-eyebrow">✦ التقييم والمتابعة</span><h1>سجل درجات الطلاب</h1><p>أضف درجة حقيقية لطالب مقيد بالمجموعة، لتظهر في تقرير ولي الأمر لنفس الشهر.</p></div></div><section class="panel"><h2 class="panel-title">تسجيل تقييم جديد</h2><p class="monthly-note">المدرس يسجل لمجموعاته المسندة إليه فقط. التقييم العام يظهر في تقرير الطالب وولي الأمر فور الحفظ. لنتيجة مسودة قبل النشر استخدم صفحة الامتحانات والنتائج. هذا الإصدار يسجل تقييمًا جديدًا فقط؛ راجع البيانات قبل الحفظ، فلا يوجد تعديل أو حذف بعد الحفظ بعد.</p><form onsubmit="return saveGradeRecord(event)"><fieldset class="monthly-fieldset"' + (state.saving ? ' disabled' : '') + '><div class="monthly-form-grid"><div class="field"><label for="grade-group">المجموعة</label><select id="grade-group" name="groupId" required onchange="gradeGroupChanged(this.value)"><option value="">اختر المجموعة</option>' + state.groups.map(function(group) { return '<option value="' + group.groupId + '"' + (String(group.groupId) === draft.groupId ? ' selected' : '') + '>' + safeText(group.subject + ' / ' + group.group) + ' #' + group.groupId + '</option>'; }).join('') + '</select></div><div class="field"><label for="grade-student">الطالب المقيد بالمجموعة</label><select id="grade-student" name="studentId" required onchange="GRADE_ENTRY.draft.studentId=this.value"' + (state.enrollmentLoading ? ' disabled' : '') + '><option value="">' + (state.enrollmentLoading ? 'جارٍ تحميل الطلاب...' : 'اختر الطالب') + '</option>' + state.students.map(function(student) { return '<option value="' + student.id + '"' + (String(student.id) === draft.studentId ? ' selected' : '') + '>' + safeText(student.name) + ' #' + student.id + '</option>'; }).join('') + '</select></div>' + input('title', 'اسم التقييم', 'text', 'maxlength="160"') + input('assessedOn', 'تاريخ التقييم', 'date', 'min="1900-01-01" max="2199-12-31"') + input('score', 'الدرجة المكتسبة', 'number', 'min="0" step="any"') + input('maxScore', 'الدرجة النهائية', 'number', 'min="0.000001" step="any"') + '</div>' + (state.enrollmentError ? '<p role="alert">' + safeText(state.enrollmentError) + '</p>' : '') + '<button class="btn" type="submit"' + (!draft.groupId || !state.students.length || state.enrollmentLoading ? ' disabled' : '') + '>' + (state.saving ? 'جارٍ الحفظ...' : 'حفظ الدرجة') + '</button></fieldset></form><p role="status" class="monthly-note">' + safeText(state.message) + '</p></section><section class="panel grade-record-list"><div class="monthly-controls"><h2 class="panel-title">درجات الشهر</h2><div class="field"><label for="gradesMonth">الشهر</label><input id="gradesMonth" type="month" min="1900-01" max="2199-12" value="' + safeText(state.month) + '" onchange="GRADE_ENTRY.month=this.value;loadGradeRecords()"></div><button class="btn btn-secondary" onclick="loadGradeRecords()"' + (state.loading ? ' disabled' : '') + '>تحديث القائمة</button></div><p class="panel-subtitle">أحدث 500 تقييم للشهر المختار ضمن نطاق صلاحياتك.</p>' + (state.error ? '<p role="alert">' + safeText(state.error) + '</p>' : state.loading ? '<p role="status">جارٍ تحميل الدرجات...</p>' : monthlyTable(['الطالب', 'المادة / المجموعة', 'التقييم', 'التاريخ', 'الدرجة'], state.items.map(function(grade) { return monthlyCells([grade.student.name, grade.subject + ' / ' + grade.group, grade.title, grade.assessedOn, grade.score + ' / ' + grade.maxScore], true); }), 'لا توجد درجات مسجلة في هذا الشهر.')) + '</section>';
 }
 
 /* 14. DATA CENTER & EXCEL MIGRATION */
