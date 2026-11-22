@@ -64,7 +64,7 @@ export function registerExamRoutes(app: FastifyInstance) {
     const result = await prisma.$transaction(async tx => {
       const exam = await findExam(tx, user, parsed.data.id); if (!exam) return null;
       const students = await tx.student.findMany({ where: { centerId: user.centerId!, OR: [{ enrollments: { some: { groupId: exam.groupId } } }, { gradeRecords: { some: { examId: exam.id, groupId: exam.groupId } } }] },
-        select: { id: true, name: true, gradeRecords: { where: { examId: exam.id, groupId: exam.groupId }, select: { id: true, score: true, maxScore: true } } }, orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        select: { id: true, name: true, gradeRecords: { where: { examId: exam.id, groupId: exam.groupId }, select: { id: true, score: true, maxScore: true, revision: true } } }, orderBy: [{ name: 'asc' }, { id: 'asc' }],
       });
       return { exam: examView(exam, user.centerId!), students: students.map(student => ({ id: student.id, name: student.name, result: student.gradeRecords[0] || null })) };
     });
@@ -105,4 +105,54 @@ export function registerExamRoutes(app: FastifyInstance) {
     if ('error' in result) return reply.code(result.status!).send({ error: result.error });
     return result;
   });
-      }
+
+  const correctionPath = z.object({ id: z.string().min(1).max(100), studentId: z.coerce.number().int().positive().max(2147483647) });
+  const correctionInput = z.object({ score: z.number().finite().nonnegative(), expectedRevision: z.number().int().nonnegative(), reason: z.string().trim().min(5).max(500), confirmPublished: z.boolean().default(false) }).strict();
+  app.get('/api/center/exams/:id/results/:studentId/history', async (request, reply) => {
+    const user = await actor(request, reply, 'academic.manage_grades'); if (!user) return;
+    const path = correctionPath.safeParse(request.params); if (!path.success) return reply.code(422).send({ error: 'INVALID_INPUT' });
+    const canPublish = await authorize(user.id, 'academic.publish_results', { centerId: user.centerId });
+    const data = await prisma.$transaction(async tx => {
+      const exam = await findExam(tx, user, path.data.id); if (!exam) return null;
+      const grade = await tx.gradeRecord.findFirst({ where: { examId: exam.id, groupId: exam.groupId, studentId: path.data.studentId, student: { centerId: user.centerId! } },
+        select: { id: true, score: true, maxScore: true, revision: true, student: { select: { id: true, name: true } }, corrections: { orderBy: { revision: 'desc' }, take: 50, select: { id: true, revision: true, previousScore: true, score: true, maxScore: true, reason: true, createdAt: true, correctedBy: { select: { name: true, centerId: true } } } } },
+      });
+      if (!grade) return null;
+      return { exam: examView(exam, user.centerId!), student: grade.student, grade: { id: grade.id, score: grade.score, maxScore: grade.maxScore, revision: grade.revision }, limit: 50,
+        canCorrect: !exam.publishedAt || canPublish,
+        history: grade.corrections.map(row => ({ id: row.id, revision: row.revision, previousScore: row.previousScore, score: row.score, maxScore: row.maxScore, reason: row.reason, createdAt: row.createdAt, correctedBy: row.correctedBy.centerId === user.centerId ? row.correctedBy.name : 'موظف سابق' })),
+      };
+    });
+    if (!data) return reply.code(404).send({ error: 'RESULT_NOT_FOUND' });
+    return data;
+  });
+  app.post('/api/center/exams/:id/results/:studentId/corrections', async (request, reply) => {
+    const user = await actor(request, reply, 'academic.manage_grades'); if (!user) return;
+    const path = correctionPath.safeParse(request.params), input = correctionInput.safeParse(request.body);
+    if (!path.success || !input.success) return reply.code(422).send({ error: 'INVALID_INPUT' });
+    const canPublish = await authorize(user.id, 'academic.publish_results', { centerId: user.centerId });
+    try {
+      const result = await prisma.$transaction(async tx => {
+        const exam = await findExam(tx, user, path.data.id); if (!exam) return { error: 'RESULT_NOT_FOUND', status: 404 };
+        const grade = await tx.gradeRecord.findFirst({ where: { examId: exam.id, groupId: exam.groupId, studentId: path.data.studentId, student: { centerId: user.centerId! } } });
+        if (!grade) return { error: 'RESULT_NOT_FOUND', status: 404 };
+        if (exam.publishedAt && !canPublish) return { error: 'PUBLISHED_CORRECTION_FORBIDDEN', status: 403 };
+        if (exam.publishedAt && !input.data.confirmPublished) return { error: 'PUBLISHED_CORRECTION_CONFIRMATION_REQUIRED', status: 422 };
+        if (grade.revision !== input.data.expectedRevision) return { error: 'GRADE_CHANGED', status: 409 };
+        if (grade.maxScore <= 0 || grade.maxScore !== exam.maxScore) return { error: 'INVALID_GRADE_SNAPSHOT', status: 422 };
+        if (input.data.score > grade.maxScore) return { error: 'SCORE_EXCEEDS_MAXIMUM', status: 422 };
+        if (input.data.score === grade.score) return { error: 'NO_GRADE_CHANGE', status: 422 };
+        const changed = await tx.gradeRecord.updateMany({ where: { id: grade.id, revision: input.data.expectedRevision }, data: { score: input.data.score, revision: { increment: 1 } } });
+        if (changed.count !== 1) return { error: 'GRADE_CHANGED', status: 409 };
+        const correction = await tx.gradeCorrection.create({ data: { gradeRecordId: grade.id, revision: grade.revision + 1, previousScore: grade.score, score: input.data.score, maxScore: grade.maxScore, reason: input.data.reason, correctedById: user.id }, select: { id: true } });
+        await tx.auditLog.create({ data: { centerId: user.centerId, userId: user.id, action: 'exams.correct_result', entity: 'GradeRecord', entityId: grade.id, metadata: JSON.stringify({ examId: exam.id, correctionId: correction.id, revision: grade.revision + 1, previousScore: grade.score, score: input.data.score, published: Boolean(exam.publishedAt) }) } });
+        return { grade: { id: grade.id, score: input.data.score, maxScore: grade.maxScore, revision: grade.revision + 1 }, published: Boolean(exam.publishedAt) };
+      });
+      if ('error' in result) return reply.code(result.status!).send({ error: result.error });
+      return result;
+    } catch (error) {
+      if (['P2002', 'P2034', 'P2028'].includes((error as { code?: string }).code || '')) return reply.code(409).send({ error: 'GRADE_CHANGED' });
+      throw error;
+    }
+  });
+  }
