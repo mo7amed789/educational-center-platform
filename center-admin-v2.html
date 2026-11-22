@@ -2107,6 +2107,9 @@ var STATE = {
   attendance: {},
   subscriptions: [],
   reports: null,
+  sessionsAvailable: false,
+  centerLoading: false,
+  sessionEpoch: 0,
   searchQuery: '',
 };
 
@@ -2198,6 +2201,7 @@ function handleLogin(e) {
   })
   .then(function(res) {
     STATE.currentUser = res.user;
+    form.password.value = ''; if (form.mfaCode) form.mfaCode.value = '';
     statusEl.textContent = 'تم تسجيل الدخول بنجاح! مرحباً ' + res.user.name;
     statusEl.className = 'auth-status auth-success';
     initSession(res.user);
@@ -2217,7 +2221,22 @@ function handleLogin(e) {
   return false;
 }
 
+function clearCenterData() {
+  STATE.sessionEpoch += 1;
+  STATE.teachers = []; STATE.groups = []; STATE.courses = []; STATE.classrooms = [];
+  STATE.students = []; STATE.sessions = []; STATE.subscriptions = []; STATE.attendance = {};
+  STATE.reports = null; STATE.sessionsAvailable = false; STATE.centerLoading = false; STATE.searchQuery = '';
+}
+function clearPrivateView() {
+  document.querySelectorAll('dialog').forEach(function(dialog) { if (dialog.open) dialog.close(); });
+  document.querySelectorAll('dialog form').forEach(function(form) { form.reset(); });
+  ['appMain', 'receiptContent', 'sdmContent', 'kioskResultBox'].forEach(function(id) {
+    var element = document.getElementById(id); if (element) element.innerHTML = '';
+  });
+}
 function initSession(user) {
+  clearCenterData(); clearPrivateView();
+  STATE.activeView = 'dashboard';
   document.getElementById('roleGate').hidden = true;
   var role = user.role;
   STATE.currentRole = role;
@@ -2236,11 +2255,20 @@ function initSession(user) {
 }
 
 function logoutSession() {
-  api('/api/auth/logout', { method: 'POST' }).finally(function() {
+  clearCenterData(); clearPrivateView();
+  PARENT_REPORT = newParentReport(); GRADE_ENTRY = newGradeEntry();
+  api('/api/auth/logout', { method: 'POST' }).then(function() {
     STATE.currentUser = null;
     STATE.currentRole = null;
     document.getElementById('roleGate').hidden = false;
     document.getElementById('authStatus').textContent = '';
+  }).catch(function() {
+    STATE.currentUser = null; STATE.currentRole = null;
+    document.getElementById('roleGate').hidden = false;
+    var status = document.getElementById('authStatus');
+    status.textContent = 'تعذر تأكيد إنهاء جلسة الخادم. أعد المحاولة قبل ترك الجهاز. ';
+    var retry = document.createElement('button'); retry.type = 'button'; retry.className = 'btn btn-secondary btn-sm';
+    retry.textContent = 'إعادة محاولة تسجيل الخروج'; retry.onclick = logoutSession; status.appendChild(retry);
   });
 }
 
@@ -2366,7 +2394,10 @@ function loadAllCenterData() {
   if (STATE.currentRole === 'GUARDIAN') {
     return loadParentChildren();
   }
+  var epoch = STATE.sessionEpoch;
+  STATE.centerLoading = true; renderActiveView();
   var p1 = api('/api/center/overview').then(function(res) {
+    if (epoch !== STATE.sessionEpoch) return;
     STATE.teachers = res.teachers || [];
     STATE.groups = res.groups || [];
     STATE.courses = res.courses || [];
@@ -2374,23 +2405,31 @@ function loadAllCenterData() {
   });
 
   var p2 = api('/api/students?page=1&pageSize=100').then(function(res) {
+    if (epoch !== STATE.sessionEpoch) return;
     STATE.students = res.items || [];
   });
 
   var p3 = api('/api/center/reports/summary').then(function(res) {
+    if (epoch !== STATE.sessionEpoch) return;
     STATE.reports = res;
-  }).catch(function() {});
+  }).catch(function() {
+    if (epoch === STATE.sessionEpoch) STATE.reports = null;
+  });
 
   var p4 = api('/api/center/sessions').then(function(res) {
-    STATE.sessions = res.items || [];
-  }).catch(function() {});
+    if (epoch !== STATE.sessionEpoch) return;
+    STATE.sessions = res.items || []; STATE.sessionsAvailable = true;
+  }).catch(function() {
+    if (epoch === STATE.sessionEpoch) { STATE.sessions = []; STATE.sessionsAvailable = false; }
+  });
 
   var p5 = api('/api/center/subscriptions').then(function(res) {
+    if (epoch !== STATE.sessionEpoch) return;
     STATE.subscriptions = res.items || [];
   }).catch(function() {});
 
-  Promise.all([p1, p2, p3, p4, p5]).finally(function() {
-    renderActiveView();
+  Promise.allSettled([p1, p2, p3, p4, p5]).finally(function() {
+    if (epoch === STATE.sessionEpoch && STATE.currentUser) { STATE.centerLoading = false; renderActiveView(); }
   });
 }
 
@@ -2400,6 +2439,7 @@ function loadAllCenterData() {
 function renderActiveView() {
   var container = document.getElementById('appMain');
   if (!container) return;
+  if (STATE.centerLoading && STATE.currentRole !== 'GUARDIAN') { container.innerHTML = '<div class="panel" role="status">جارٍ تحميل بيانات الحساب...</div>'; return; }
 
   switch(STATE.activeView) {
     case 'dashboard': renderDashboardView(container); break;
@@ -2425,11 +2465,13 @@ function renderActiveView() {
 
 /* 1. DASHBOARD VIEW */
 function renderDashboardView(c) {
-  var totalStudents = STATE.students.length;
+  var totalStudents = STATE.reports && STATE.reports.counts ? STATE.reports.counts.students : null;
   var totalTeachers = STATE.teachers.length;
   var totalGroups = STATE.groups.length;
-  var totalRevenue = (STATE.reports && STATE.reports.revenue ? STATE.reports.revenue.amount : 0) || 42850;
-  var activeSessions = STATE.sessions.filter(function(s) { return s.status === 'active'; }).length || 3;
+  var totalRevenue = STATE.reports && STATE.reports.financialVisible && STATE.reports.revenue ? STATE.reports.revenue.amount : null;
+  var today = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0');
+  var todaySessions = STATE.sessions.filter(function(row) { return row.date === today; });
+  var activeSessions = STATE.sessionsAvailable ? todaySessions.filter(function(row) { return row.status === 'active'; }).length : 'غير متاح';
 
   c.innerHTML = `
     <div class="view-header school-dashboard-header">
@@ -2450,22 +2492,20 @@ function renderDashboardView(c) {
           <span class="kpi-title">إجمالي الطلاب المقيدين</span>
           <div class="kpi-icon">${getSvgIcon('students')}</div>
         </div>
-        <div class="kpi-value">${totalStudents} <span style="font-size:14px;font-weight:500;color:var(--tx-dim)">طالب</span></div>
+        <div class="kpi-value">${totalStudents === null ? 'غير متاح' : totalStudents} <span style="font-size:14px;font-weight:500;color:var(--tx-dim)">طالب</span></div>
         <div class="kpi-footer">
-          <span class="kpi-delta up">+12%</span>
-          <span>معدل نمو الطلاب هذا الشهر</span>
+          <span>إجمالي الطلاب ضمن نطاق حسابك</span>
         </div>
       </div>
 
       <div class="kpi-card" style="--kpi-color: #10b981; --kpi-bg: rgba(16, 185, 129, 0.15)">
         <div class="kpi-header">
-          <span class="kpi-title">التحصيل المالي للشهر الحالي</span>
+          <span class="kpi-title">قيمة الاشتراكات (مسدد / جزئي)</span>
           <div class="kpi-icon">${getSvgIcon('receipt')}</div>
         </div>
-        <div class="kpi-value">${totalRevenue.toLocaleString()} <span style="font-size:14px;font-weight:500;color:var(--tx-dim)">ج.م</span></div>
+        <div class="kpi-value">${totalRevenue === null ? 'غير متاح' : totalRevenue.toLocaleString()} <span style="font-size:14px;font-weight:500;color:var(--tx-dim)">ج.م</span></div>
         <div class="kpi-footer">
-          <span class="kpi-delta up">84%</span>
-          <span>نسبة سداد الاشتراكات المطلوبة</span>
+          <span>مؤشر اشتراكات، وليس كشف تحصيل نقدي</span>
         </div>
       </div>
 
@@ -2477,7 +2517,7 @@ function renderDashboardView(c) {
         <div class="kpi-value">${activeSessions} <span style="font-size:14px;font-weight:500;color:var(--tx-dim)">حصص نشطة</span></div>
         <div class="kpi-footer">
           <span class="pulse-dot" style="color:var(--ok)"></span>
-          <span>في القاعات 1، 3، و 5 الآن</span>
+          <span>وفقا لحالة الحصص المسجلة اليوم</span>
         </div>
       </div>
 
@@ -2488,7 +2528,7 @@ function renderDashboardView(c) {
         </div>
         <div class="kpi-value">${totalGroups} <span style="font-size:14px;font-weight:500;color:var(--tx-dim)">مجموعة / ${totalTeachers} معلم</span></div>
         <div class="kpi-footer">
-          <span>متوسط 22 طالب لكل مجموعة</span>
+          <span>ضمن نطاق الحساب والبيانات المحملة</span>
         </div>
       </div>
     </div>
@@ -2517,23 +2557,18 @@ function renderDashboardView(c) {
               </tr>
             </thead>
             <tbody>
-              ${STATE.groups.slice(0, 5).map(function(g, idx) {
-                var teacher = STATE.teachers.find(function(t) { return t.id === g.t; });
-                var status = idx === 0 ? 'active' : idx === 1 ? 'active' : 'scheduled';
-                return `
-                  <tr>
-                    <td><strong>${g.grade}</strong><br><small style="color:var(--tx-dim)">مجموعة #${g.id}</small></td>
-                    <td>${teacher ? teacher.name : 'أ/ معلم'}</td>
-                    <td><span style="font-family:var(--font-num)">${g.time}</span></td>
-                    <td><span class="badge badge-neutral">قاعة ${(idx % 4) + 1}</span></td>
-                    <td>
-                      ${status === 'active' ? '<span class="badge badge-success"><span class="pulse-dot"></span>جارية الآن</span>' : '<span class="badge badge-neutral">مجدولة اليوم</span>'}
-                    </td>
-                    <td>
-                      <button class="btn btn-secondary btn-sm" onclick="switchView('attendance')">تسجيل الحضور</button>
-                    </td>
-                  </tr>
-                `;
+              ${!STATE.sessionsAvailable ? '<tr><td colspan="6">لم تتوفر بيانات الحصص بعد.</td></tr>' : todaySessions.length === 0 ? '<tr><td colspan="6">لا توجد حصص مسجلة لهذا اليوم.</td></tr>' : todaySessions.slice(0, 5).map(function(session) {
+                var group = session.group || STATE.groups.find(function(row) { return row.id === session.groupId; }) || {};
+                var teacher = group.teacher || STATE.teachers.find(function(row) { return row.id === group.teacherId; });
+                var status = { active: 'جارية الآن', scheduled: 'مجدولة', completed: 'مكتملة', cancelled: 'ملغاة' }[session.status] || 'غير محددة';
+                return `<tr>
+                  <td><strong>${safeText(group.grade || '#' + session.groupId)}</strong></td>
+                  <td>${safeText(teacher ? teacher.name : 'غير محدد')}</td>
+                  <td>${safeText(session.startsAt)} - ${safeText(session.endsAt)}</td>
+                  <td>${safeText(session.classroom ? session.classroom.name : 'غير محددة')}</td>
+                  <td><span class="badge badge-neutral">${safeText(status)}</span></td>
+                  <td><button class="btn btn-secondary btn-sm" onclick="switchView('attendance')">تسجيل الحضور</button></td>
+                </tr>`;
               }).join('')}
             </tbody>
           </table>
@@ -2565,9 +2600,9 @@ function renderDashboardView(c) {
         <div style="background:var(--bg-surface-elevated);border-radius:var(--radius-md);padding:14px;margin-top:20px;border:1px solid var(--border)">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
             <span style="font-size:12px;font-weight:700">النسخ الاحتياطي السحابي</span>
-            <span class="badge badge-success">آمن ومحدث</span>
+            <span class="badge badge-neutral">غير متصل</span>
           </div>
-          <p style="font-size:11.5px;color:var(--tx-dim);margin:0">تم فحص قاعدة البيانات وتحديث الجداول بنجاح.</p>
+          <p style="font-size:11.5px;color:var(--tx-dim);margin:0">النسخ الاحتياطي السحابي غير معد. تصدير Excel ليس بديلا عن نسخة احتياطية واختبار استعادتها.</p>
         </div>
       </div>
     </div>
@@ -2861,6 +2896,7 @@ function handleKioskScan(e) {
     var s = res.student;
     var g = res.group || {};
     var isPaid = res.isPaid;
+    var financialVisible = res.financialVisible === true;
     var waParent = s.parent ? s.parent.replace(/[^0-9]/g, '') : '';
     if (waParent.startsWith('0')) waParent = '2' + waParent;
 
@@ -2870,12 +2906,12 @@ function handleKioskScan(e) {
           <span class="badge badge-success" style="font-size:13px">✅ تم تسجيل الحضور بنجاح</span>
           <span style="font-family:var(--font-num);font-weight:700">#${s.id}</span>
         </div>
-        <h3 style="margin:0 0 6px;font-size:18px;color:var(--tx)">${s.name}</h3>
-        <p style="margin:0 0 12px;font-size:13px;color:var(--tx-muted)">المجموعة: <strong>${g.grade || 'مجموعة دراسية'}</strong> (السعر: ${g.price || 0} ج.م)</p>
+        <h3 style="margin:0 0 6px;font-size:18px;color:var(--tx)">${safeText(s.name)}</h3>
+        <p style="margin:0 0 12px;font-size:13px;color:var(--tx-muted)">المجموعة: <strong>${safeText(g.grade || 'مجموعة دراسية')}</strong></p>
         
         <div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:var(--bg-surface);border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:12px">
           <span style="font-size:12.5px;font-weight:600">حالة اشتراك هذا الشهر:</span>
-          ${isPaid ? '<span class="badge badge-success">مسدد بالكامل ✅</span>' : '<span class="badge badge-danger">مستحق السداد ⚠️</span>'}
+          ${!financialVisible ? '<span class="badge badge-neutral">غير متاحة لهذا الحساب</span>' : isPaid ? '<span class="badge badge-success">مسدد بالكامل ✅</span>' : '<span class="badge badge-warning">لم يسجل كسداد كامل</span>'}
         </div>
 
         ${s.parent ? `
@@ -3160,38 +3196,20 @@ function showElectronicReceipt(receiptNo, studentId, groupId, month, amount, met
 
 /* 9. FINANCIAL & OPERATIONAL REPORTS */
 function renderReportsView(c) {
-  var rep = STATE.reports || { revenue: { amount: 42850, discount: 1500 }, counts: { students: 125, teachers: 20, groups: 40 } };
-  var rev = rep.revenue || { amount: 42850, discount: 1500 };
-
+  var rep = STATE.reports;
+  if (!rep) { c.innerHTML = '<div class="panel">التقرير غير متاح حاليا. أعد تحميل البيانات وتحقق من صلاحيات الحساب.</div>'; return; }
+  var financial = rep.financialVisible === true && rep.revenue;
+  var statuses = {};
+  Object.keys(rep.attendance || {}).forEach(function(key) { statuses[key.toUpperCase()] = (statuses[key.toUpperCase()] || 0) + rep.attendance[key]; });
+  var present = (statuses.PRESENT || 0) + (statuses.P || 0), late = (statuses.LATE || 0) + (statuses.L || 0), absent = (statuses.ABSENT || 0) + (statuses.A || 0);
+  var rate = present + late + absent ? Math.round(100 * (present + late) / (present + late + absent)) + '%' : 'لا توجد سجلات كافية';
   c.innerHTML = `
-    <div class="view-header">
-      <div class="view-title-group">
-        <h1>التقارير المالية والتشغيلية</h1>
-        <p>تحليل الإيرادات، الخصومات الممنوحة، ونسب حضور الطلاب الشهرية</p>
-      </div>
-      <div class="view-actions">
-        <button class="btn btn-secondary btn-sm" onclick="exportExcel()">تصدير تقرير شامل إلى Excel</button>
-      </div>
-    </div>
-
+    <div class="view-header"><div class="view-title-group"><h1>التقارير المالية والتشغيلية</h1><p>الشهر: ${safeText(rep.month)}. أرقام من السجلات الحالية، دون افتراض غياب غير مسجل.</p></div></div>
     <div class="kpi-grid">
-      <div class="kpi-card" style="--kpi-color: #10b981; --kpi-bg: rgba(16, 185, 129, 0.15)">
-        <div class="kpi-header"><span class="kpi-title">صافي الدخل المحصل</span></div>
-        <div class="kpi-value">${rev.amount.toLocaleString()} <span style="font-size:14px;font-weight:400;color:var(--tx-dim)">ج.م</span></div>
-        <div class="kpi-footer">معدل تحصيل ممتاز</div>
-      </div>
-      <div class="kpi-card" style="--kpi-color: #ef4444; --kpi-bg: rgba(239, 68, 68, 0.15)">
-        <div class="kpi-header"><span class="kpi-title">إجمالي الخصومات الممنوحة</span></div>
-        <div class="kpi-value">${(rev.discount || 0).toLocaleString()} <span style="font-size:14px;font-weight:400;color:var(--tx-dim)">ج.م</span></div>
-        <div class="kpi-footer">خصومات المتفوقين والإخوة</div>
-      </div>
-      <div class="kpi-card" style="--kpi-color: #6366f1; --kpi-bg: rgba(99, 102, 241, 0.15)">
-        <div class="kpi-header"><span class="kpi-title">معدل الحضور العام</span></div>
-        <div class="kpi-value">91.4%</div>
-        <div class="kpi-footer"><span class="kpi-delta up">+3.2%</span> عن الشهر السابق</div>
-      </div>
-    </div>
-  `;
+      <div class="kpi-card"><div class="kpi-header"><span class="kpi-title">قيمة الاشتراكات (مسدد / جزئي)</span></div><div class="kpi-value">${financial ? rep.revenue.amount.toLocaleString() + ' ج.م' : 'غير متاحة'}</div><div class="kpi-footer">مؤشر اشتراكات، وليس كشف تحصيل نقدي معتمدا</div></div>
+      <div class="kpi-card"><div class="kpi-header"><span class="kpi-title">خصومات الاشتراكات المسجلة</span></div><div class="kpi-value">${financial ? rep.revenue.discount.toLocaleString() + ' ج.م' : 'غير متاحة'}</div><div class="kpi-footer">نموذج التحصيل والخصومات قيد المراجعة</div></div>
+      <div class="kpi-card"><div class="kpi-header"><span class="kpi-title">معدل الحضور المسجل للشهر</span></div><div class="kpi-value" style="font-size:24px">${safeText(rate)}</div><div class="kpi-footer">الحاضر والمتأخر من الحاضر والمتأخر والغائب المسجل</div></div>
+    </div>`;
 }
 
 /* 10. STAFF & RBAC PERMISSIONS VIEW */
@@ -3278,7 +3296,7 @@ function renderTeacherPortalView(c) {
       </div>
       <div class="kpi-card" style="--kpi-color: #10b981; --kpi-bg: rgba(16, 185, 129, 0.15)">
         <div class="kpi-header"><span class="kpi-title">حصتي القادمة اليوم</span></div>
-        <div class="kpi-value" style="font-size:20px">3:00 م - قاعة 1</div>
+        <div class="kpi-value" style="font-size:20px">راجع جدول الحصص المسجل</div>
       </div>
     </div>
 
