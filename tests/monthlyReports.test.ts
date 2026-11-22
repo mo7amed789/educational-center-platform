@@ -16,7 +16,7 @@ describe('parent monthly reports and managed grade records', () => {
     for (const [key, role, center] of [
       ['parent', 'GUARDIAN', centerId], ['otherParent', 'GUARDIAN', centerId],
       ['owner', 'CENTER_OWNER', centerId], ['teacher', 'TEACHER', centerId],
-      ['foreignOwner', 'CENTER_OWNER', foreignCenterId], ['branchAdmin', 'BRANCH_ADMIN', centerId], ['unassignedAdmin', 'BRANCH_ADMIN', centerId],
+      ['student', 'STUDENT', centerId], ['otherStudent', 'STUDENT', centerId], ['badStudentLink', 'STUDENT', centerId], ['foreignOwner', 'CENTER_OWNER', foreignCenterId], ['branchAdmin', 'BRANCH_ADMIN', centerId], ['unassignedAdmin', 'BRANCH_ADMIN', centerId],
     ] as const) {
       const user = await prisma.user.create({ data: { email: `${key}@monthly.test`, name: key, role, centerId: center, passwordHash: 'unusable-test-fixture', centerMemberships: { create: { centerId: center, role } } } });
       users[key] = user.id;
@@ -33,7 +33,7 @@ describe('parent monthly reports and managed grade records', () => {
     await prisma.user.update({ where: { id: users.branchAdmin }, data: { branchId } });
     await prisma.group.update({ where: { id: groupId }, data: { branchId } });
     await prisma.group.create({ data: { id: 920003, centerId, branchId: otherBranchId, teacherId: groupId, grade: 'Other branch', days: 'Monday', time: '12:00', price: 100 } });
-    await prisma.student.createMany({ data: [{ id: childId, centerId, name: 'Own child <test>' }, { id: otherChildId, centerId, name: 'Unrelated child' }, { id: foreignChildId, centerId: foreignCenterId, name: 'Foreign child' }] });
+    await prisma.student.createMany({ data: [{ id: childId, centerId, userId: users.student, name: 'Own child <test>' }, { id: otherChildId, centerId, userId: users.otherStudent, name: 'Unrelated child' }, { id: foreignChildId, centerId: foreignCenterId, userId: users.badStudentLink, name: 'Foreign child' }] });
     guardianId = (await prisma.guardian.create({ data: { centerId, userId: users.parent, name: 'Own parent' } })).id;
     const otherGuardianId = (await prisma.guardian.create({ data: { centerId, userId: users.otherParent, name: 'Other parent' } })).id;
     await prisma.studentGuardian.createMany({ data: [{ guardianId, studentId: childId, relation: 'parent' }, { guardianId, studentId: foreignChildId, relation: 'bad-legacy-link' }, { guardianId: otherGuardianId, studentId: otherChildId, relation: 'parent' }] });
@@ -88,6 +88,25 @@ describe('parent monthly reports and managed grade records', () => {
   });
   it.each([otherChildId, foreignChildId, 99999999])('hides unlinked, cross-tenant and unknown child %i', async (id) => {
     const result = await report(id); expect(result.statusCode).toBe(404); expect(result.json()).toEqual({ error: 'CHILD_NOT_FOUND' });
+  });
+  it.each([otherChildId, foreignChildId, 99999999])('blocks the older student-detail path from exposing child %i to a parent', async (id) => {
+    const result = await app.inject({ method: 'GET', url: `/api/students/${id}`, headers: { cookie: cookies.parent } });
+    expect(result.statusCode).toBe(404); expect(result.json()).toEqual({ error: 'STUDENT_NOT_FOUND' });
+  });
+  it('allows own-child generic details but excludes cross-tenant nested attendance', async () => {
+    const result = await app.inject({ method: 'GET', url: `/api/students/${childId}`, headers: { cookie: cookies.parent } });
+    expect(result.statusCode).toBe(200);
+    expect(result.json().student.attendance.every((row: { groupId: number }) => row.groupId === groupId)).toBe(true);
+  });
+  it('restricts generic student details to the signed-in student', async () => {
+    expect((await app.inject({ method: 'GET', url: `/api/students/${childId}`, headers: { cookie: cookies.student } })).statusCode).toBe(200);
+    expect((await app.inject({ method: 'GET', url: `/api/students/${otherChildId}`, headers: { cookie: cookies.student } })).statusCode).toBe(404);
+  });
+  it('keeps the existing student portal inside its current center', async () => {
+    const own = await app.inject({ method: 'GET', url: '/api/portal/student', headers: { cookie: cookies.student } });
+    expect(own.statusCode).toBe(200);
+    expect(own.json().student.attendance.every((row: { groupId: number }) => row.groupId === groupId)).toBe(true);
+    expect((await app.inject({ method: 'GET', url: '/api/portal/student', headers: { cookie: cookies.badStudentLink } })).statusCode).toBe(404);
   });
   it('does not let another guardian read this child', async () => { expect((await report(childId, '2026-11', 'otherParent')).statusCode).toBe(404); });
   it.each(['owner', 'teacher'])('does not treat the %s role as a parent', async (who) => { expect((await report(childId, '2026-11', who)).statusCode).toBe(403); });
