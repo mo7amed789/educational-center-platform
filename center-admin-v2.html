@@ -1588,6 +1588,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .school-nav-note { color: #69695e; font-size: 12px; }
 .school-nav-note span { color: #5c2ac6; font-size: 22px; vertical-align: middle; margin-right: 8px; }
 .school-nav-login { background: #fff; color: #25232a; border-radius: 40px; padding: 13px 20px; text-decoration: none; font-size: 12px; font-weight: 700; white-space: nowrap; display: flex; gap: 22px; }
+.school-nav-controls { display:flex; align-items:center; gap:10px; }
+.school-theme-toggle { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:10px 16px; border:1px solid var(--border); border-radius:40px; background:var(--bg-surface); color:var(--tx); font:inherit; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap; }
+@media(max-width:600px) {
+ .school-nav { flex-wrap:wrap; gap:12px; }
+ .school-nav-controls { width:100%; justify-content:space-between; }
+}
 .school-entry { display: grid; grid-template-columns: 1.12fr 1fr; max-width: 1520px; padding: 0 30px 30px; margin: auto; gap: 16px; }
 .school-hero { position: relative; overflow: hidden; background: #5c2ac6; color: #fff; border-radius: 34px; padding: 40px 44px 24px; display: flex; flex-direction: column; min-height: 750px; }
 .school-hero::before { content: ''; position: absolute; width: 460px; height: 460px; border: 65px solid #ffffff06; border-radius: 46% 58% 38% 64%; top: -270px; left: -120px; transform: rotate(35deg); pointer-events: none; }
@@ -1961,7 +1967,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
       <span>منصة السنتر<span class="school-wordmark-sub">مساحة للتعلّم والنمو</span></span>
     </a>
     <div class="school-nav-note">للطلاب، ولمن يصنعون مستقبلهم <span aria-hidden="true">✦</span></div>
-    <a class="school-nav-login" href="#loginEmail">دخول المنصة <span aria-hidden="true">↗</span></a>
+    <div class="school-nav-controls">
+      <button class="school-theme-toggle" type="button" data-theme-toggle onclick="toggleTheme()" aria-label="تفعيل الوضع الداكن" aria-pressed="false"><span aria-hidden="true">◐</span><span data-theme-label>الوضع الداكن</span></button>
+      <a class="school-nav-login" href="#loginEmail">دخول المنصة <span aria-hidden="true">↗</span></a>
+    </div>
   </header>
   <main class="school-entry">
     <div class="school-hero">
@@ -4100,17 +4109,27 @@ function execCommandAction(idx) {
 /* ==========================================================================
    THEME TOGGLE
    ========================================================================== */
+function syncThemeButtons(theme) {
+  document.querySelectorAll('[data-theme-toggle]').forEach(function(button) {
+    var label = theme === 'dark' ? 'الوضع الفاتح' : 'الوضع الداكن';
+    button.setAttribute('aria-label', 'تفعيل ' + label);
+    button.setAttribute('aria-pressed', String(theme === 'dark'));
+    button.querySelector('[data-theme-label]').textContent = label;
+  });
+}
 function toggleTheme() {
   var html = document.documentElement;
   var current = html.getAttribute('data-theme') || 'dark';
   var next = current === 'dark' ? 'light' : 'dark';
   html.setAttribute('data-theme', next);
   localStorage.setItem('center_theme', next);
+  syncThemeButtons(next);
 }
 
 function initTheme() {
   var saved = localStorage.getItem('center_theme') || 'light';
   document.documentElement.setAttribute('data-theme', saved);
+  syncThemeButtons(saved);
 }
 
 /* ==========================================================================
