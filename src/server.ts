@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import { registerAutoUpdateRoutes } from './autoUpdate.js';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import cookie from '@fastify/cookie';
@@ -51,7 +52,7 @@ export function buildApp() {
   app.get('/readyz', async (_request, reply) => {
     try {
       await prisma.$queryRaw`SELECT 1`;
-      return { ok: true, database: 'ready' };
+      return { ok: true, database: 'ready', ...(process.env.EDU_INSTANCE_ID ? { instanceId: process.env.EDU_INSTANCE_ID } : {}) };
     } catch {
       return reply.code(503).send({ ok: false, database: 'unavailable' });
     }
@@ -878,6 +879,7 @@ export function buildApp() {
     return { student, attendanceRate };
   });
 
+  registerAutoUpdateRoutes(app);
   registerMonthlyReportRoutes(app);
   registerSelectedAttendanceRoutes(app);
   registerExamRoutes(app);
@@ -923,4 +925,4 @@ if (process.env.NODE_ENV !== 'test') {
   assertProductionConfig();
   const port = Number(process.env.PORT ?? 3000);
   buildApp().listen({ port, host: process.env.HOST ?? '127.0.0.1' }).catch(async (error) => { console.error(error); await prisma.$disconnect(); process.exit(1); });
-                                                                                                                      }
+      }
