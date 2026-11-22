@@ -1,3 +1,4 @@
+import { registerNotificationRoutes } from './notifications.js';
 import Fastify from 'fastify';
 import { registerAutoUpdateRoutes } from './autoUpdate.js';
 import { readFile } from 'node:fs/promises';
@@ -883,6 +884,7 @@ export function buildApp() {
   registerMonthlyReportRoutes(app);
   registerSelectedAttendanceRoutes(app);
   registerExamRoutes(app);
+  registerNotificationRoutes(app);
 
   // SESSIONS STATUS PATCH
   app.patch('/api/center/sessions/:id', async (request, reply) => {
@@ -925,4 +927,4 @@ if (process.env.NODE_ENV !== 'test') {
   assertProductionConfig();
   const port = Number(process.env.PORT ?? 3000);
   buildApp().listen({ port, host: process.env.HOST ?? '127.0.0.1' }).catch(async (error) => { console.error(error); await prisma.$disconnect(); process.exit(1); });
-      }
+                                                                                                                             }
