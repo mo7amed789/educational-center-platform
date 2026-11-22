@@ -1814,6 +1814,23 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
  .monthly-controls .field { max-width: none; flex-basis: 100%; }
 }
 
+
+.attendance-code-form { display:flex; align-items:flex-end; flex-wrap:wrap; gap:12px; }
+.attendance-code-form .field { flex:1 1 220px; margin:0; }
+.attendance-code-form input { font-family:var(--font-num); font-size:18px; }
+.attendance-row-actions { display:flex; flex-wrap:wrap; gap:6px; min-width:250px; }
+#attCodeMessage { min-height:1.6em; line-height:1.8; overflow-wrap:anywhere; }
+@media(max-width:600px) {
+ .attendance-code-form .btn { width:100%; } #attGroupSelect { max-width:100%; }
+ #attendanceTableContainer .data-table { display:block; min-width:0; width:100%; }
+ #attendanceTableContainer thead { display:none; }
+ #attendanceTableContainer tbody { display:block; }
+ #attendanceTableContainer tr { display:grid; grid-template-columns:auto 1fr; padding:12px; border-bottom:1px solid var(--border); }
+ #attendanceTableContainer td { border:0; padding:6px 4px; white-space:normal; }
+ #attendanceTableContainer td:nth-child(n+3) { grid-column:1 / -1; }
+ #attendanceTableContainer td:nth-child(4)::before { content:'الحالة: '; color:var(--tx-muted); }
+ #attendanceTableContainer .attendance-row-actions { min-width:0; }
+}
 </style>
 </head>
 <body>
@@ -2197,6 +2214,7 @@ function initSession(user) {
   document.getElementById('sidebarAvatar').textContent = user.name ? user.name[0] : 'U';
   document.getElementById('sidebarUserRole').textContent = role;
 
+  ATTENDANCE_PAGE = newAttendancePage();
   PARENT_REPORT = newParentReport();
   GRADE_ENTRY = newGradeEntry();
   buildNavigationForRole(role);
@@ -2870,124 +2888,98 @@ function handleKioskScan(e) {
   return false;
 }
 
-/* 7. ATTENDANCE MATRIX VIEW */
+/* 7. ATTENDANCE MATRIX VIEW: fixed pupil code, explicit selected group/date. */
+function newAttendancePage() { return { groupId: '', date: localReportDate(), rows: [], key: '', sequence: 0, loading: false, busy: false, code: '', message: '', error: '' }; }
+var ATTENDANCE_PAGE = newAttendancePage();
+function attendanceKey() { return ATTENDANCE_PAGE.groupId + ':' + ATTENDANCE_PAGE.date; }
+function attendanceCurrent(state, userId, key) { return ATTENDANCE_PAGE === state && STATE.currentUser && STATE.currentUser.id === userId && attendanceKey() === key; }
+function attendanceStatusLabel(status) {
+  return { PRESENT: 'حاضر', P: 'حاضر', ABSENT: 'غائب', A: 'غائب', LATE: 'متأخر', L: 'متأخر', EXCUSED: 'بعذر', E: 'بعذر' }[String(status || '').toUpperCase()] || (status ? 'حالة غير معروفة' : 'لم يسجل بعد');
+}
+function attendanceError(error) {
+  return { INVALID_INPUT: 'راجع الكود والمجموعة والتاريخ.', INVALID_SELECTION: 'اختر مجموعة وتاريخا صحيحين.', INVALID_STUDENT_CODE: 'اكتب رقم الطالب أو الكود بالشكل STUDENT:1001.', GROUP_NOT_FOUND: 'المجموعة غير متاحة ضمن صلاحياتك.', STUDENT_NOT_ENROLLED: 'الكود غير مقيد في المجموعة المختارة. لم يسجل حضور.', FORBIDDEN: 'حسابك لا يملك صلاحية هذا الإجراء.' }[error.message] || 'تعذر إتمام الطلب. حاول مرة أخرى.';
+}
 function renderAttendanceView(c) {
-  var groups = STATE.groups;
-  var today = new Date().toISOString().slice(0, 10);
-
-  c.innerHTML = `
-    <div class="view-header">
-      <div class="view-title-group">
-        <h1>سجل الحضور والغياب اليومي</h1>
-        <p>تسجيل الحضور اليدوي للمجموعات، تعديل الحالات (حاضر / غائب / متأخر / معذور)</p>
-      </div>
-      <div class="view-actions">
-        <input type="date" id="attDateInput" value="${today}" onchange="refreshAttendanceTable()" style="padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-surface-elevated);color:var(--tx)">
-        <select id="attGroupSelect" onchange="refreshAttendanceTable()" style="padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-surface-elevated);color:var(--tx)">
-          ${groups.map(function(g) {
-            return `<option value="${g.id}">مجموعة #${g.id} - ${g.grade} (${g.time})</option>`;
-          }).join('')}
-        </select>
-        <button class="btn btn-sm btn-success" onclick="bulkMarkAttendance('PRESENT')">تحضير كل الطلاب</button>
-      </div>
-    </div>
-
-    <div class="panel" style="padding:0;overflow:hidden">
-      <div class="table-wrapper" style="border:none" id="attendanceTableContainer">
-        <!-- Loaded via refreshAttendanceTable -->
-      </div>
-    </div>
-  `;
-
+  var state = ATTENDANCE_PAGE;
+  if (state.groupId && !STATE.groups.some(function(group) { return String(group.id) === state.groupId; })) { state.groupId = ''; state.rows = []; state.key = ''; state.sequence++; state.loading = false; }
+  c.innerHTML = '<div class="view-header"><div class="view-title-group"><h1>سجل الحضور والغياب اليومي</h1><p>كود واحد ثابت للطالب في كل مجموعاته. اختر المجموعة واليوم قبل المسح.</p></div><div class="view-actions"><div class="field"><label for="attDateInput">يوم الحضور</label><input type="date" id="attDateInput" min="1900-01-01" max="2199-12-31" value="' + safeText(state.date) + '" onchange="attendanceSelectionChanged()"></div><div class="field"><label for="attGroupSelect">المجموعة المخصصة</label><select id="attGroupSelect" onchange="attendanceSelectionChanged()"><option value="">اختر المجموعة</option>' + STATE.groups.map(function(g) { return '<option value="' + g.id + '"' + (String(g.id) === state.groupId ? ' selected' : '') + '>مجموعة #' + g.id + ' - ' + safeText(g.grade) + ' (' + safeText(g.time) + ')</option>'; }).join('') + '</select></div></div></div>' +
+    '<section class="panel"><h2 class="panel-title">تسجيل الحضور بالكود الثابت</h2><p class="monthly-note">يمكنك استخدام قارئ الباركود الذي يكتب الكود ثم Enter، أو إدخال رقم الطالب يدويا. التسجيل للمجموعة واليوم المختارين فقط، ولا ينقل الطالب إلى مجموعة أخرى.</p><form id="attCodeForm" class="attendance-code-form" onsubmit="return scanSelectedAttendance(event)"><div class="field"><label for="attStudentCode">كود الطالب</label><input id="attStudentCode" type="text" dir="ltr" autocomplete="off" maxlength="50" placeholder="STUDENT:1001" value="' + safeText(state.code) + '" oninput="ATTENDANCE_PAGE.code=this.value" required></div><button class="btn btn-success" type="submit" data-att-write>تسجيل الحضور</button></form><p class="monthly-note">الكود ثابت ولا يتغير عند إضافة الطالب إلى مجموعة. السجل الحالي لكل طالب ومجموعة ويوم، وليس لكل حصة بتوقيت مختلف في اليوم نفسه.</p><p id="attCodeMessage" role="status" aria-live="polite">' + safeText(state.message) + '</p></section>' +
+    '<section class="panel"><div class="monthly-controls"><h2 class="panel-title">طلاب المجموعة وحالتهم المسجلة</h2><button class="btn btn-secondary btn-sm" type="button" onclick="refreshAttendanceTable()">تحديث السجل</button><button class="btn btn-success btn-sm" type="button" data-att-write onclick="bulkMarkAttendance(\'PRESENT\')">تحضير كل طلاب المجموعة</button></div><div class="table-wrapper" id="attendanceTableContainer"></div></section>';
+  drawAttendanceRoster();
+  setAttendanceBusy(state.busy);
+  if (state.groupId && state.key !== attendanceKey() && !state.loading) refreshAttendanceTable();
+}
+function setAttendanceBusy(busy) {
+  var selected = Boolean(ATTENDANCE_PAGE.groupId && ATTENDANCE_PAGE.date);
+  document.querySelectorAll('#attCodeForm input, [data-att-write]').forEach(function(el) { el.disabled = busy || !selected; });
+  ['attGroupSelect', 'attDateInput'].forEach(function(id) { var el = document.getElementById(id); if (el) el.disabled = busy; });
+}
+function attendanceSelectionChanged() {
+  var state = ATTENDANCE_PAGE;
+  state.groupId = document.getElementById('attGroupSelect').value;
+  state.date = document.getElementById('attDateInput').value;
+  state.message = ''; state.code = ''; state.rows = []; state.key = ''; state.error = '';
+  var message = document.getElementById('attCodeMessage'); if (message) message.textContent = '';
+  var input = document.getElementById('attStudentCode'); if (input) input.value = '';
+  setAttendanceBusy(false);
   refreshAttendanceTable();
 }
-
+function drawAttendanceRoster() {
+  var container = document.getElementById('attendanceTableContainer'), state = ATTENDANCE_PAGE;
+  if (!container || STATE.activeView !== 'attendance') return;
+  if (!state.groupId || !state.date) { container.innerHTML = '<p class="monthly-empty">اختر المجموعة ويوم الحضور لعرض الطلاب.</p>'; return; }
+  if (state.loading) { container.innerHTML = '<p class="monthly-empty" role="status">جارٍ تحميل سجل المجموعة...</p>'; return; }
+  if (state.error) { container.innerHTML = '<p class="monthly-empty" role="alert">' + safeText(state.error) + '</p>'; return; }
+  container.innerHTML = monthlyTable(['رقم الطالب', 'اسم الطالب', 'الكود الثابت', 'الحالة الحالية', 'تغيير الحالة'], state.rows.map(function(s) {
+    return '<tr><td>#' + s.id + '</td><td>' + safeText(s.name) + '</td><td dir="ltr"><code>' + safeText(s.code) + '</code></td><td>' + safeText(attendanceStatusLabel(s.status)) + '</td><td><div class="attendance-row-actions">' + [['PRESENT', 'حاضر', 'success'], ['ABSENT', 'غائب', 'danger'], ['LATE', 'متأخر', 'secondary'], ['EXCUSED', 'بعذر', 'secondary']].map(function(item) { return '<button type="button" class="btn btn-sm btn-' + item[2] + '" data-att-write onclick="recordAttendanceDirect(' + s.id + ',\'' + item[0] + '\')">' + item[1] + '</button>'; }).join('') + '</div></td></tr>';
+  }), 'لا يوجد طلاب مقيدون بهذه المجموعة ضمن صلاحياتك.');
+  setAttendanceBusy(state.busy);
+}
 function refreshAttendanceTable() {
-  var container = document.getElementById('attendanceTableContainer');
-  if (!container) return;
-  var groupSelect = document.getElementById('attGroupSelect');
-  var groupId = groupSelect ? Number(groupSelect.value) : (STATE.groups[0] ? STATE.groups[0].id : 1);
-  var date = document.getElementById('attDateInput') ? document.getElementById('attDateInput').value : new Date().toISOString().slice(0, 10);
-
-  var enrolledStudents = STATE.students.filter(function(s) {
-    return (s.enrollments || []).some(function(e) { return e.groupId === groupId; });
-  });
-
-  container.innerHTML = `
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>رقم الطالب</th>
-          <th>اسم الطالب</th>
-          <th>هاتف الطالب</th>
-          <th>الحالة الحالية</th>
-          <th>تغيير الحالة بنقرة واحدة</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${enrolledStudents.length === 0 ? '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--tx-dim)">لا يوجد طلاب مقيدين بهذه المجموعة</td></tr>' : ''}
-        ${enrolledStudents.map(function(s) {
-          return `
-            <tr>
-              <td><span style="font-family:var(--font-num);font-weight:700">#${s.id}</span></td>
-              <td><strong>${s.name}</strong></td>
-              <td><span style="font-family:var(--font-num)">${s.phone || '-'}</span></td>
-              <td id="attStatus_${s.id}">
-                <span class="badge badge-success">حاضر ✅</span>
-              </td>
-              <td>
-                <div style="display:flex;gap:6px">
-                  <button class="btn btn-sm btn-success" onclick="recordAttendanceDirect(${s.id}, ${groupId}, '${date}', 'PRESENT')">حاضر</button>
-                  <button class="btn btn-sm btn-danger" onclick="recordAttendanceDirect(${s.id}, ${groupId}, '${date}', 'ABSENT')">غائب</button>
-                  <button class="btn btn-sm btn-secondary" onclick="recordAttendanceDirect(${s.id}, ${groupId}, '${date}', 'LATE')">متأخر</button>
-                </div>
-              </td>
-            </tr>
-          `;
-        }).join('')}
-      </tbody>
-    </table>
-  `;
+  var state = ATTENDANCE_PAGE, key = attendanceKey(), sequence = ++state.sequence, userId = STATE.currentUser && STATE.currentUser.id;
+  state.rows = []; state.error = '';
+  if (!state.groupId || !state.date) { state.loading = false; drawAttendanceRoster(); return Promise.resolve(); }
+  state.loading = true; drawAttendanceRoster();
+  return api('/api/center/attendance/selected?groupId=' + encodeURIComponent(state.groupId) + '&date=' + encodeURIComponent(state.date)).then(function(data) {
+    if (!attendanceCurrent(state, userId, key) || sequence !== state.sequence) return;
+    state.rows = data.students; state.key = key;
+  }).catch(function(error) {
+    if (attendanceCurrent(state, userId, key) && sequence === state.sequence) { state.error = attendanceError(error); state.key = ''; }
+  }).finally(function() { if (attendanceCurrent(state, userId, key) && sequence === state.sequence) { state.loading = false; drawAttendanceRoster(); } });
 }
-
-function recordAttendanceDirect(studentId, groupId, date, status) {
-  api('/api/center/attendance', {
-    method: 'POST',
-    body: JSON.stringify({ studentId: studentId, groupId: groupId, date: date, status: status })
-  })
-  .then(function() {
-    var cell = document.getElementById('attStatus_' + studentId);
-    if (cell) {
-      if (status === 'PRESENT') cell.innerHTML = '<span class="badge badge-success">حاضر ✅</span>';
-      else if (status === 'ABSENT') cell.innerHTML = '<span class="badge badge-danger">غائب ❌</span>';
-      else if (status === 'LATE') cell.innerHTML = '<span class="badge badge-warning">متأخر ⏱️</span>';
-    }
-    snack('تم تحديث حالة الحضور', 'success');
-  })
-  .catch(function(err) {
-    snack(err.message, 'error');
+function selectedAttendanceWrite(payload, scan) {
+  var state = ATTENDANCE_PAGE, key = attendanceKey(), userId = STATE.currentUser && STATE.currentUser.id;
+  if (state.busy || !state.groupId || !state.date) return Promise.resolve();
+  state.busy = true; state.message = 'جارٍ تسجيل الحضور...'; setAttendanceBusy(true);
+  var message = document.getElementById('attCodeMessage'); if (message) message.textContent = state.message;
+  return api('/api/center/attendance/selected/' + (scan ? 'scan' : 'record'), { method: 'POST', body: JSON.stringify(Object.assign({}, payload, { groupId: Number(state.groupId), date: state.date })) }).then(function(data) {
+    if (!attendanceCurrent(state, userId, key)) return;
+    state.code = ''; state.message = (data.repeated ? 'مسجل بالفعل: ' : 'تم التسجيل: ') + data.student.name + '، مجموعة #' + data.group.id + '، ' + data.date + '، ' + attendanceStatusLabel(data.attendance.status);
+    return refreshAttendanceTable();
+  }).catch(function(error) {
+    if (attendanceCurrent(state, userId, key)) state.message = attendanceError(error);
+  }).finally(function() {
+    state.busy = false;
+    if (!attendanceCurrent(state, userId, key) || STATE.activeView !== 'attendance') return;
+    setAttendanceBusy(false); var message = document.getElementById('attCodeMessage'); if (message) message.textContent = state.message;
+    var input = document.getElementById('attStudentCode'); if (input) { input.value = state.code; input.focus(); }
   });
 }
-
+function scanSelectedAttendance(event) { event.preventDefault(); selectedAttendanceWrite({ code: document.getElementById('attStudentCode').value.trim() }, true); return false; }
+function recordAttendanceDirect(studentId, status) { return selectedAttendanceWrite({ studentId: studentId, status: status }, false); }
 function bulkMarkAttendance(status) {
-  var groupSelect = document.getElementById('attGroupSelect');
-  var groupId = groupSelect ? Number(groupSelect.value) : 1;
-  var date = document.getElementById('attDateInput') ? document.getElementById('attDateInput').value : new Date().toISOString().slice(0, 10);
-
-  var enrolledStudents = STATE.students.filter(function(s) {
-    return (s.enrollments || []).some(function(e) { return e.groupId === groupId; });
-  });
-
-  var promises = enrolledStudents.map(function(s) {
-    return api('/api/center/attendance', {
-      method: 'POST',
-      body: JSON.stringify({ studentId: s.id, groupId: groupId, date: date, status: status })
-    });
-  });
-
-  Promise.all(promises).then(function() {
-    refreshAttendanceTable();
-    snack('تم تحضير جميع طلاب المجموعة بنجاح', 'success');
+  var state = ATTENDANCE_PAGE, key = attendanceKey(), userId = STATE.currentUser && STATE.currentUser.id;
+  if (state.busy || state.loading || state.key !== key || !state.rows.length) return;
+  state.busy = true; setAttendanceBusy(true);
+  var groupId = Number(state.groupId), date = state.date;
+  return Promise.allSettled(state.rows.map(function(student) { return api('/api/center/attendance/selected/record', { method: 'POST', body: JSON.stringify({ studentId: student.id, groupId: groupId, date: date, status: status }) }); })).then(function(results) {
+    if (!attendanceCurrent(state, userId, key)) return;
+    var failed = results.filter(function(result) { return result.status === 'rejected'; }).length;
+    state.message = failed ? 'تم تسجيل ' + (results.length - failed) + ' طالب. تعذر تسجيل ' + failed + '، راجع السجل وأعد المحاولة.' : 'تم تحضير كل طلاب المجموعة المختارة.';
+    return refreshAttendanceTable();
+  }).finally(function() {
+    state.busy = false;
+    if (attendanceCurrent(state, userId, key) && STATE.activeView === 'attendance') { setAttendanceBusy(false); var message = document.getElementById('attCodeMessage'); if (message) message.textContent = state.message; }
   });
 }
 
