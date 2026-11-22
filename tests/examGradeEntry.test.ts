@@ -2,13 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 const html = readFileSync('center-admin-v2.html', 'utf8');
+const examAsset = readFileSync('assets/exam-grade-entry.js', 'utf8');
 const grades = html.slice(html.indexOf('function newGradeEntry()'), html.indexOf('/* 14.', html.indexOf('function newGradeEntry()')));
 const exams = html.slice(html.indexOf('function newExamPage()'), html.indexOf('function newGradeEntry()'));
 const detail = (id = 'exam-a', result: unknown = null) => ({ exam: { id, title: 'Scheduled unit one', groupId: 101, group: 'Class one', subject: 'Math', date: '2026-11-23', maxScore: 20, publishedAt: null }, students: [{ id: 123, name: 'Assigned pupil', result }, { id: 124, name: 'Next pupil', result: null }] });
 function setup(api: (url: string, options?: any) => Promise<any> = async () => detail()) {
   const nodes: Record<string, any> = { 'grade-score': { value: '4' }, 'exam-result-score': { value: '4' } };
   const c: any = { STATE: { currentUser: { id: 'teacher' }, activeView: 'elsewhere' }, localReportDate: () => '2026-11-22', api, safeText: (s: unknown) => String(s ?? ''), document: { getElementById: (id: string) => nodes[id] }, refreshMonthlyView() {}, renderActiveView() {}, monthlyTable: () => '', monthlyCells: () => '', Intl };
-  runInNewContext(exams + grades, c); c.GRADE_ENTRY = c.newGradeEntry(); c.EXAM_PAGE = c.newExamPage(); c.nodes = nodes; return c;
+  runInNewContext(examAsset + exams + grades, c); c.GRADE_ENTRY = c.newGradeEntry(); c.EXAM_PAGE = c.newExamPage(); c.nodes = nodes; return c;
 }
 const tick = () => new Promise(resolve => setImmediate(resolve));
 const submit = (score: string) => ({ preventDefault() {}, target: { elements: { namedItem: () => ({ value: score }) } } });
