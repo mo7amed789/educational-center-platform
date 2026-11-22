@@ -1,3 +1,4 @@
+import { assertLearningSchemaReady } from './schemaReadiness.js';
 import { registerNotificationRoutes } from './notifications.js';
 import Fastify from 'fastify';
 import { registerAutoUpdateRoutes } from './autoUpdate.js';
@@ -924,7 +925,15 @@ export function buildApp() {
 }
 
 if (process.env.NODE_ENV !== 'test') {
-  assertProductionConfig();
-  const port = Number(process.env.PORT ?? 3000);
-  buildApp().listen({ port, host: process.env.HOST ?? '127.0.0.1' }).catch(async (error) => { console.error(error); await prisma.$disconnect(); process.exit(1); });
-                                                                                                                             }
+  const start = async () => {
+    assertProductionConfig();
+    await assertLearningSchemaReady(prisma);
+    const port = Number(process.env.PORT ?? 3000);
+    await buildApp().listen({ port, host: process.env.HOST ?? '127.0.0.1' });
+  };
+  void start().catch(async (error: unknown) => {
+    console.error(error instanceof Error ? error.message : 'STARTUP_FAILED');
+    await prisma.$disconnect().catch(() => undefined);
+    process.exit(1);
+  });
+      }
