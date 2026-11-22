@@ -3552,6 +3552,23 @@ function renderSettingsView(c) {
       </div>
     </div>
   `;
+  addAutoUpdatePanel(c);
+}
+
+function loadAutoUpdateStatus() {
+  var holder=document.getElementById('autoUpdateStatus'),userId=STATE.currentUser&&STATE.currentUser.id;if(!holder)return;
+  holder.textContent='جارٍ قراءة حالة التحديث...';
+  api('/api/center/system/update-status').then(function(data){
+    if(!holder.isConnected||document.getElementById('autoUpdateStatus')!==holder||!STATE.currentUser||STATE.currentUser.id!==userId||STATE.currentRole!=='CENTER_OWNER')return;
+    var labels={starting:'جارٍ بدء التشغيل',waiting:'بانتظار الفحص التلقائي',checking:'جارٍ فحص main الرسمي',up_to_date:'البرنامج على آخر إصدار',backing_up:'جارٍ حفظ نسخة قاعدة البيانات',installing:'جارٍ تثبيت متطلبات الإصدار',applying_schema:'جارٍ فحص وتطبيق التغيير الآمن للبيانات',restarting:'جارٍ إعادة التشغيل والتحقق',updated:'تم التحديث والتحقق بنجاح',blocked:'التحديث متوقف لحماية النسخة المحلية',rolling_back:'جارٍ استعادة الإصدار والبيانات السابقين',rolled_back:'فشل التحديث وتمت الاستعادة. المراجعة اليدوية مطلوبة',manual_recovery:'تعذرت الاستعادة الآلية. أوقف البرنامج واحتفظ بالنسخة الاحتياطية وراجع سجل المشغل',disabled:'التحديث التلقائي غير مفعل'};
+    function time(value){return value?safeText(new Date(value).toLocaleString('ar-EG')):'لم يسجل بعد';}
+    holder.innerHTML='<strong>'+safeText(labels[data.state]||'حالة غير معروفة')+'</strong><p class="monthly-note">'+(data.managed?(data.enabled?'المشغل المدار يعمل والتحديث التلقائي مفعل.':'المشغل المدار يعمل، لكن التطبيق التلقائي متوقف.'):'شغلت هذه النسخة بدون مشغل التحديث. لا تحدث نفسها أثناء التشغيل.')+'</p><p>الإصدار: <span dir="ltr">'+safeText((data.currentCommit||'').slice(0,12)||'غير متاح')+'</span></p><p>آخر فحص: '+time(data.checkedAt)+'<br>الفحص القادم: '+time(data.nextCheckAt)+'</p>'+(data.failureStage?'<p>توقف عند خطوة: <span dir="ltr">'+safeText(data.failureStage)+'</span></p>':'');
+  }).catch(function(){if(holder.isConnected&&STATE.currentUser&&STATE.currentUser.id===userId)holder.textContent='تعذر قراءة حالة التحديث. راجع المشغل، ولا تفترض أن التحديث نجح.';});
+}
+function addAutoUpdatePanel(container) {
+  if(STATE.currentRole!=='CENTER_OWNER')return;
+  container.insertAdjacentHTML('afterbegin','<section class="panel"><h2 class="panel-title">تحديث البرنامج من GitHub</h2><p class="monthly-note">من main في المستودع الرسمي فقط. تحفظ نسخة SQLite أولا، ثم يحدث البرنامج ويعاد تشغيله. أي تغيير قد يفقد بيانات يوقف التحديث ويحاول استعادة النسخة السابقة، مع تحذير واضح إن تعذرت الاستعادة.</p><div id="autoUpdateStatus" role="status"></div><button class="btn btn-secondary" onclick="loadAutoUpdateStatus()">تحديث الحالة</button><p class="monthly-note">التفعيل: AUTO_UPDATE_ENABLED=true في .env ثم التشغيل باستخدام npm run start:managed. للتعطيل اجعل القيمة false وأعد تشغيل المشغل. لا تشغل نسخة ثانية تكتب في قاعدة البيانات نفسها.</p></section>');
+  loadAutoUpdateStatus();
 }
 
 function handleChangePassword(e) {
