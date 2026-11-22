@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { prisma } from './prisma.js';
 import { registerMonthlyReportRoutes } from './monthlyReports.js';
 import { registerSelectedAttendanceRoutes } from './selectedAttendance.js';
+import { registerExamRoutes } from './exams.js';
 import { createSession, destroySession, publicUser, requirePermission, requireUser, currentUser, generateMfaSecret, verifyMfaCode, SESSION_COOKIE } from './auth.js';
 import { authorize } from './authorization.js';
 import { migrateLegacyData } from './legacyMigration.js';
@@ -876,6 +877,7 @@ export function buildApp() {
 
   registerMonthlyReportRoutes(app);
   registerSelectedAttendanceRoutes(app);
+  registerExamRoutes(app);
 
   // SESSIONS STATUS PATCH
   app.patch('/api/center/sessions/:id', async (request, reply) => {
@@ -918,4 +920,4 @@ if (process.env.NODE_ENV !== 'test') {
   assertProductionConfig();
   const port = Number(process.env.PORT ?? 3000);
   buildApp().listen({ port, host: process.env.HOST ?? '127.0.0.1' }).catch(async (error) => { console.error(error); await prisma.$disconnect(); process.exit(1); });
-                                               }
+        }
