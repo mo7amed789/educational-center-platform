@@ -469,14 +469,17 @@ export function buildApp() {
     const existing = await prisma.student.findFirst({ where: { id: params.id, centerId: user.centerId } });
     if (!existing) return reply.code(404).send({ error: 'STUDENT_NOT_FOUND' });
 
-    await prisma.$transaction(async (tx) => {
+    const deleted = await prisma.$transaction(async (tx) => {
+      if (await tx.gradeCorrection.count({ where: { gradeRecord: { studentId: params.id } } })) return false;
       await tx.enrollment.deleteMany({ where: { studentId: params.id } });
       await tx.attendance.deleteMany({ where: { studentId: params.id } });
       await tx.subscription.deleteMany({ where: { studentId: params.id } });
       await tx.payment.deleteMany({ where: { studentId: params.id } });
       await tx.studentGuardian.deleteMany({ where: { studentId: params.id } });
       await tx.student.delete({ where: { id: params.id } });
+      return true;
     });
+    if (!deleted) return reply.code(409).send({ error: 'STUDENT_HAS_GRADE_HISTORY' });
 
     await prisma.auditLog.create({
       data: { centerId: user.centerId, userId: user.id, action: 'students.delete', entity: 'Student', entityId: String(params.id) },
@@ -920,4 +923,4 @@ if (process.env.NODE_ENV !== 'test') {
   assertProductionConfig();
   const port = Number(process.env.PORT ?? 3000);
   buildApp().listen({ port, host: process.env.HOST ?? '127.0.0.1' }).catch(async (error) => { console.error(error); await prisma.$disconnect(); process.exit(1); });
-        }
+                                                                                                                      }
