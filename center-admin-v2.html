@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl" data-theme="dark" data-palette="indigo">
+<html lang="ar" dir="rtl" data-theme="light" data-palette="school">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#07090e">
+<meta name="theme-color" content="#f3f0e9">
 <title>منصة السنتر التعليمية الذكية | Educational Center Platform</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1543,6 +1543,225 @@ dialog.custom-modal::backdrop {
     margin-right: 0;
   }
 }
+
+/* Learning studio: original styling inspired by the linked school reference. */
+:root {
+  --school-purple: #5c2ac6; --school-lime: #c3ff3d; --school-cream: #f3f0e9;
+  --font-sans: 'Cairo', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  --radius-sm: 14px; --radius-md: 20px; --radius-lg: 26px; --radius-xl: 32px;
+}
+[data-theme="light"] {
+  --bg-base: #f3f0e9; --bg-surface: #fff; --bg-surface-elevated: #f7f5f0;
+  --bg-surface-hover: #ede7f9; --bg-glass: rgba(243,240,233,.96);
+  --bg-glass-subtle: #f7f5f0; --border: #e8e3dc; --border-hover: #c5b2e9;
+  --border-focus: #5c2ac6; --pr: #5c2ac6; --pr-hover: #47209d;
+  --pr-subtle: #eee6fc; --pr-glow: rgba(92,42,198,.12); --on-pr: #fff;
+  --tx: #202320; --tx-muted: #5b5e58; --tx-dim: #6d706a;
+  --ok: #27613a; --ok-glow: #e7f4d9; --er: #b62e40; --er-glow: #fce6e9;
+  --wn: #825412; --wn-glow: #fff1d3; --info: #35578f; --info-glow: #e8effa;
+  --shadow-sm: 0 2px 3px #27202003; --shadow-md: 0 8px 24px #30204b06;
+  --shadow-lg: 0 20px 55px #30204b15;
+}
+[data-theme="dark"] {
+  --bg-base: #1c1728; --bg-surface: #272033; --bg-surface-elevated: #322a40;
+  --bg-surface-hover: #40334f; --bg-glass: rgba(28,23,40,.96);
+  --bg-glass-subtle: #322a40; --border: #44374f; --border-hover: #8065a8;
+  --pr: #c5acff; --pr-hover: #d7c5ff; --pr-subtle: #44305f;
+  --pr-glow: #9475d51a; --on-pr: #241338; --border-focus: #c3ff3d;
+  --tx: #f5f1fa; --tx-muted: #c5bbd0; --tx-dim: #b2a7c0;
+  --ok: #a8e689; --ok-glow: #2a402d;
+}
+.bg-aurora { display: none; }
+button, input, select, textarea { font-family: inherit; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 3px solid var(--pr); outline-offset: 4px;
+}
+.school-gate { background: var(--school-cream); color: #202320; }
+.school-nav {
+  min-height: 102px; display: flex; align-items: center; justify-content: space-between;
+  gap: 24px; max-width: 1520px; margin: auto; padding: 22px 48px;
+}
+.school-wordmark { display: flex; gap: 12px; align-items: center; color: #28222f; text-decoration: none; font-weight: 800; font-size: 19px; }
+.school-logo { display: grid; place-items: center; background: #fff; color: #5c2ac6; border-radius: 16px; width: 46px; height: 46px; transform: rotate(7deg); }
+.school-logo svg { width: 30px; height: 30px; }
+.school-wordmark-sub { display: block; font-size: 10px; font-weight: 500; color: #6d706a; margin-top: 1px; }
+.school-nav-note { color: #69695e; font-size: 12px; }
+.school-nav-note span { color: #5c2ac6; font-size: 22px; vertical-align: middle; margin-right: 8px; }
+.school-nav-login { background: #fff; color: #25232a; border-radius: 40px; padding: 13px 20px; text-decoration: none; font-size: 12px; font-weight: 700; white-space: nowrap; display: flex; gap: 22px; }
+.school-entry { display: grid; grid-template-columns: 1.12fr 1fr; max-width: 1520px; padding: 0 30px 30px; margin: auto; gap: 16px; }
+.school-hero { position: relative; overflow: hidden; background: #5c2ac6; color: #fff; border-radius: 34px; padding: 40px 44px 24px; display: flex; flex-direction: column; min-height: 750px; }
+.school-hero::before { content: ''; position: absolute; width: 460px; height: 460px; border: 65px solid #ffffff06; border-radius: 46% 58% 38% 64%; top: -270px; left: -120px; transform: rotate(35deg); pointer-events: none; }
+.school-kicker { display: flex; align-items: center; gap: 9px; font-size: 11px; font-weight: 500; color: #eee5ff; }
+.school-kicker > span { color: #c3ff3d; font-size: 22px; }
+.school-hero h1 { font-size: clamp(40px,4.2vw,64px); line-height: 1.55; letter-spacing: -1.7px; font-weight: 700; margin: 14px 0 16px; position: relative; z-index: 1; }
+.school-circled { position: relative; white-space: nowrap; }
+.school-circled::after { content:''; position: absolute; inset: 0 -10px -4px; border: 2px solid #c3ff3d; border-radius: 50%; transform: rotate(-8deg); pointer-events: none; }
+.school-hero > p { font-size: 13px; line-height: 2; color: #eee5ff; margin: 0; }
+.school-hero-tags { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 20px; }
+.school-hero-tags span { border: 1px solid #ffffff40; border-radius: 40px; padding: 7px 12px; font-size: 10px; }
+.school-art { height: 260px; min-height: 220px; position: relative; margin: auto 0 8px; }
+.school-lime-disc { position: absolute; width: 210px; height: 210px; background: #c3ff3d; border-radius: 50% 50% 44% 56%; right: calc(50% - 105px); bottom: -4px; transform: rotate(-15deg); }
+.school-orbit { position: absolute; width: 320px; height: 130px; border: 1px solid #b395ed; border-radius: 50%; right: calc(50% - 160px); top: 87px; transform: rotate(-25deg); }
+.school-book { position: absolute; width: 185px; right: calc(50% - 92px); top: 68px; transform: rotate(-12deg); }
+.school-book svg { width: 100%; filter: drop-shadow(0 8px 0 #351b7230); }
+.school-sticker { position: absolute; background: #f3f0e9; color: #25232a; display: flex; align-items: center; gap: 17px; border-radius: 40px; padding: 9px 15px 9px 8px; font-size: 11px; box-shadow: 0 8px 20px #24104b18; }
+.school-sticker b { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #c3ff3d; color: #25232a; font-size: 16px; font-family: system-ui; }
+.school-sticker-one { top: 43px; right: 5px; transform: rotate(10deg); }
+.school-sticker-two { bottom: 5px; left: 0; transform: rotate(-8deg); }
+.school-spark { position: absolute; color: #c3ff3d; font-size: 55px; left: 20px; top: 21px; line-height: 1; }
+.school-hero-foot { border-top: 1px solid #ffffff30; padding-top: 18px; display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: #ece4f8; }
+.school-hero-foot > span:last-child { font-size: 22px; }
+.school-login-wrap { border-radius: 34px; background: #fff; display: grid; place-items: center; padding: 38px 28px; }
+.school-login-card { opacity: 1; transform: none; pointer-events: auto; backdrop-filter: none; -webkit-backdrop-filter: none; background: transparent; border: 0; box-shadow: none; width: min(100%,390px); max-width: none; padding: 0; text-align: right; color: #202320; animation: none; }
+.school-form-eyebrow { display: flex; justify-content: space-between; align-items: center; color: #5c2ac6; font-size: 12px; font-weight: 700; }
+.school-form-eyebrow span { font-size: 23px; }
+.school-login-card h2 { font-size: 32px; font-weight: 700; letter-spacing: -.8px; line-height: 1.65; margin: 16px 0 10px; }
+.school-login-card > p { color: #6d706a; font-size: 12px; line-height: 1.9; margin: 0 0 28px; }
+.school-login-card .auth-form { gap: 17px; margin-bottom: 0; }
+.school-login-card .field label { color: #41433d; font-size: 11px; font-weight: 600; margin-bottom: 8px; }
+.school-login-card .field input { color: #202320; background: #f8f7f3; border: 1px solid #e8e5df; border-radius: 14px; min-height: 50px; padding: 12px 16px; font-size: 12px; }
+.school-login-card .field input:focus { border-color: #5c2ac6; box-shadow: 0 0 0 3px #5c2ac610; outline-color: #5c2ac6; }
+.school-login-card #loginBtn { min-height: 52px; background: #c3ff3d; color: #202320; box-shadow: none; border: 0; border-radius: 40px; justify-content: space-between; padding: 13px 21px; font-size: 12px; margin-top: 3px; }
+.school-login-card #loginBtn span { background: #202320; color: #c3ff3d; width: 25px; height: 25px; display: grid; place-items: center; border-radius: 50%; font-size: 16px; }
+.school-login-card .auth-status { color: #b62e40; font-size: 11px; }
+.school-login-card .auth-status.auth-success { color: #27613a; }
+.school-demo-divider { display: flex; align-items: center; gap: 12px; color: #76776e; font-size: 10px; margin: 12px 0 18px; }
+.school-demo-divider::before, .school-demo-divider::after { content:''; height: 1px; flex: 1; background: #e8e5df; }
+.school-login-card .quick-accounts-title { color: #6d706a; font-size: 10px; font-weight: 500; text-transform: none; letter-spacing: 0; }
+.school-login-card .quick-acc-btn { background: #fff; border-color: #e8e5df; padding: 11px; gap: 10px; min-height: 66px; box-shadow: none; }
+.school-login-card .quick-acc-btn:hover { background: #f4effd; border-color: #b398e8; }
+.school-login-card .quick-acc-btn .title { color: #2a2530; font-size: 10px; }
+.school-login-card .quick-acc-btn .sub { color: #6d706a; font-size: 9px; margin-top: 3px; }
+.school-role-symbol { display: grid; place-items: center; background: #f1eafb; color: #5c2ac6; width: 30px; height: 30px; border-radius: 11px; font: 19px system-ui; flex-shrink: 0; }
+.school-login-card .school-login-note { font-size: 10px; margin: 22px 0 0; color: #7b7c73; }
+.school-gate a:focus-visible, .school-gate button:focus-visible { outline-color: #5c2ac6; }
+.sidebar { background: var(--bg-base); border-left-color: var(--border); }
+.brand-section { padding: 28px 22px; border-bottom: none; }
+.brand-logo { background: #c3ff3d; color: #4a219e; box-shadow: none; border-radius: 13px; transform: rotate(7deg); flex-shrink: 0; }
+.brand-info h2 { font-size: 13px; }
+.brand-info span { font-size: 10px; }
+.nav-menu { padding: 6px 16px; gap: 6px; }
+.nav-item { border-radius: 40px; padding: 12px 17px; font-size: 12px; }
+.nav-item.active { box-shadow: none; }
+.sidebar-footer { background: transparent; }
+.topbar { background: var(--bg-base); backdrop-filter: none; border-bottom: 0; min-height: 78px; padding: 0 30px; }
+.topbar-title { font-size: 14px; }
+.spotlight-btn, .icon-btn { border-radius: 40px; box-shadow: none; }
+.school-dashboard-header { position: relative; isolation: isolate; overflow: hidden; border-radius: 28px; background: #5c2ac6; color: #fff; padding: 27px 30px; min-height: 172px; align-items: center; margin-bottom: 24px; }
+.school-dashboard-header::before { content: '✳'; position: absolute; font-size: 230px; line-height: 1; color: #c3ff3d18; right: 38%; bottom: -74px; z-index: -1; transform: rotate(18deg); }
+.school-dashboard-header h1 { color: #fff; font-size: 27px; font-weight: 700; margin-top: 6px; }
+.school-dashboard-header p { color: #ece4fc; max-width: 390px; line-height: 1.9; font-size: 11px; }
+.school-dashboard-eyebrow { color: #d4f490; font-size: 10px; }
+.school-dashboard-header .view-actions { flex-direction: column; align-items: stretch; gap: 9px; }
+.school-dashboard-header .btn { background: #c3ff3d; color: #28252c; border: 0; box-shadow: none; min-height: 38px; border-radius: 40px; font-size: 10px; }
+.school-dashboard-header .btn-secondary { background: #ffffff15; color: #fff; border: 1px solid #ffffff50; }
+.kpi-grid { gap: 14px; }
+.kpi-card { border-radius: 24px; padding: 22px; box-shadow: none; }
+[data-theme="light"] .kpi-card:first-child { background: #e2f4ba; border-color: #e2f4ba; }
+[data-theme="light"] .kpi-card:nth-child(2) { background: #eae1f9; border-color: #eae1f9; }
+.kpi-title { font-size: 11px; font-weight: 600; }
+.kpi-value { font-size: 32px; letter-spacing: -1px; }
+.kpi-icon { background: var(--bg-surface); color: var(--pr); border-radius: 50%; width: 32px; height: 32px; }
+.kpi-footer { font-size: 10px; }
+.kpi-delta { border-radius: 30px; }
+.panel { border-radius: 25px; box-shadow: none; }
+.panel-header { padding: 22px 24px; }
+.panel-title { font-size: 14px; }
+.panel-subtitle { font-size: 10px; line-height: 1.9; }
+.data-table th { background: var(--bg-surface-elevated); font-size: 10px; color: var(--tx-muted); padding: 13px 17px; }
+.data-table td { font-size: 11px; padding: 15px 17px; }
+.btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+.btn { border-radius: 40px; box-shadow: none; }
+.btn-secondary { box-shadow: none; }
+.badge { border-radius: 30px; }
+.dashboard-layout { min-width: 0; }
+.dashboard-layout > * { min-width: 0; }
+.table-wrapper { max-width: 100%; overflow-x: auto; }
+@media (max-width: 1200px) {
+  .school-entry { grid-template-columns: 1fr 1fr; }
+  .school-hero { padding: 36px 30px 24px; }
+  .school-nav { padding: 22px 36px; }
+  .dashboard-layout { grid-template-columns: 1fr !important; }
+  .kpi-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+.school-menu-close { display: none; }
+@media (max-width: 860px) {
+  .school-menu-close { display: flex; flex-shrink: 0; width: 28px; height: 28px; font-size: 20px; }
+  .school-nav-note { display: none; }
+  .school-nav { min-height: 84px; padding: 18px 24px; }
+  .school-entry { padding: 0 18px 18px; gap: 14px; }
+  .school-hero { padding: 27px 25px 20px; min-height: 730px; }
+  .school-hero h1 { font-size: 36px; letter-spacing: -1px; }
+  .school-hero-tags { gap: 5px; }
+  .school-hero-tags span { font-size: 9px; padding: 6px 9px; }
+  .school-login-wrap { padding: 30px 22px; }
+  .school-login-card h2 { font-size: 27px; }
+  .school-login-card .quick-accounts-grid { grid-template-columns: 1fr; }
+  .topbar { padding: 0 20px; gap: 10px; }
+  #mobileMenuBtn { display: flex !important; }
+  .topbar-right { min-width: 0; gap: 8px; }
+  .topbar-title { font-size: 12px; }
+  .topbar-left { gap: 6px; }
+  .topbar .status-pill-live { display: none; }
+  .main-wrapper { width: 100%; min-width: 0; }
+}
+@media (max-width: 600px) {
+  .school-wordmark { font-size: 14px; gap: 9px; }
+  .school-wordmark-sub { font-size: 8px; }
+  .school-logo { width: 37px; height: 37px; border-radius: 12px; }
+  .school-logo svg { width: 25px; height: 25px; }
+  .school-nav { padding: 16px 20px; }
+  .school-nav-login { font-size: 10px; padding: 11px 15px; gap: 14px; }
+  .school-entry { grid-template-columns: 1fr; padding: 0 12px 12px; }
+  .school-hero { min-height: auto; border-radius: 28px; padding: 27px 26px 20px; }
+  .school-hero h1 { font-size: 43px; line-height: 1.6; margin-top: 12px; }
+  .school-hero > p { font-size: 12px; }
+  .school-kicker { font-size: 10px; }
+  .school-hero-tags { margin-top: 17px; }
+  .school-art { margin: 15px 0 12px; height: 220px; }
+  .school-lime-disc { width: 175px; height: 175px; right: calc(50% - 87px); }
+  .school-book { width: 155px; right: calc(50% - 77px); top: 55px; }
+  .school-orbit { width: 260px; right: calc(50% - 130px); top: 60px; }
+  .school-sticker { font-size: 9px; padding: 7px 12px 7px 7px; gap: 8px; }
+  .school-sticker b { width: 24px; height: 24px; }
+  .school-sticker-one { top: 17px; right: 0; }
+  .school-spark { left: 2px; top: 4px; font-size: 44px; }
+  .school-login-wrap { border-radius: 28px; padding: 32px 25px; }
+  .school-login-card .quick-accounts-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .school-login-card h2 { font-size: 31px; }
+  .school-login-card .quick-acc-btn { padding: 10px 8px; gap: 7px; }
+  .school-role-symbol { width: 25px; height: 28px; font-size: 17px; }
+  .school-login-card .quick-acc-btn .title { font-size: 10px; }
+  .school-login-card .quick-acc-btn .sub { font-size: 8px; }
+  .topbar { padding: 0 14px; min-height: 68px; height: auto; }
+  .topbar-left .spotlight-btn { padding: 8px; }
+  .topbar-left .spotlight-btn kbd, .topbar-left .spotlight-btn span { display: none; }
+  .topbar-left > .btn { display: none; }
+  .view-container { padding: 14px; }
+  .view-header { flex-direction: column; align-items: stretch; gap: 16px; }
+  .school-dashboard-header { padding: 24px; min-height: auto; }
+  .school-dashboard-header h1 { font-size: 23px; }
+  .school-dashboard-header p { font-size: 10px; }
+  .school-dashboard-header .view-actions { flex-direction: row; flex-wrap: wrap; }
+  .school-dashboard-header .view-actions .btn { flex: 1; white-space: normal; padding: 10px; line-height: 1.8; }
+  .kpi-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+  .kpi-card { padding: 16px; min-width: 0; }
+  .kpi-title { font-size: 9px; }
+  .kpi-icon { width: 27px; height: 27px; flex-shrink: 0; }
+  .kpi-value { font-size: 26px; }
+  .kpi-value > span { font-size: 10px !important; display: block; letter-spacing: 0; }
+  .kpi-footer { flex-wrap: wrap; font-size: 9px; }
+  .panel-header { padding: 18px; flex-wrap: wrap; gap: 10px; }
+  .panel-header .btn { white-space: normal; }
+  .view-title-group h1 { font-size: 22px; }
+  .view-actions { flex-wrap: wrap; }
+  .data-table { min-width: 640px; }
+  .sidebar { box-shadow: -10px 0 40px #21152f20; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
 </style>
 </head>
 <body>
@@ -1554,128 +1773,57 @@ dialog.custom-modal::backdrop {
 </div>
 
 <!-- ROLE GATE / APPLE SCROLL-DRIVEN VIDEO SCRUBBING EXPERIENCE -->
-<section class="role-gate" id="roleGate">
-  <!-- Apple Frosted Glass Top Navigation Bar -->
-  <header class="apple-scroll-nav">
-    <div class="apple-nav-inner">
-      <div class="apple-nav-brand" onclick="AppleVideoEngine.scrollToStep(0)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-        <span class="apple-brand-name">منصة السنتر التعليمية</span>
-        <span class="apple-brand-badge">Fintech 2.5</span>
-      </div>
-      <nav class="apple-nav-links">
-        <button type="button" class="apple-link-btn" onclick="AppleVideoEngine.scrollToStep(0)">نظرة عامة</button>
-        <button type="button" class="apple-link-btn" onclick="AppleVideoEngine.scrollToStep(0.35)">المسح الذكي</button>
-        <button type="button" class="apple-link-btn" onclick="AppleVideoEngine.scrollToStep(0.68)">المالية والاشتراكات</button>
-      </nav>
-      <div class="apple-nav-cta">
-        <button type="button" class="apple-cta-btn" onclick="AppleVideoEngine.scrollToStep(1)">
-          <span>تسجيل الدخول</span>
-          <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
-        </button>
-      </div>
-    </div>
+<!-- Original learning-inspired landing page. No third-party artwork. -->
+<section class="role-gate school-gate" id="roleGate" aria-label="تسجيل الدخول إلى منصة السنتر">
+  <header class="school-nav">
+    <a class="school-wordmark" href="#loginEmail" aria-label="منصة السنتر، تسجيل الدخول">
+      <span class="school-logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5c-3-2-6-2-9-1v14c3-1 6-1 9 1 3-2 6-2 9-1V4c-3-1-6-1-9 1Zm0 0v14"/></svg></span>
+      <span>منصة السنتر<span class="school-wordmark-sub">مساحة للتعلّم والنمو</span></span>
+    </a>
+    <div class="school-nav-note">للطلاب، ولمن يصنعون مستقبلهم <span aria-hidden="true">✦</span></div>
+    <a class="school-nav-login" href="#loginEmail">دخول المنصة <span aria-hidden="true">↗</span></a>
   </header>
-
-  <!-- Apple Scroll Runway (420vh long) -->
-  <div class="apple-scroll-runway" id="appleScrollRunway">
-    <!-- Pinned 100vh Sticky Stage -->
-    <div class="apple-sticky-stage" id="appleStickyStage">
-      <!-- 60FPS Video Scrubbing Canvas -->
-      <canvas id="appleVideoCanvas" class="apple-video-canvas"></canvas>
-
-      <!-- Apple Narrative Slides Overlay -->
-      <div class="apple-story-overlay" id="appleStoryOverlay">
-        <div class="apple-story-slide" id="storySlide0">
-          <div class="apple-badge-pill">الجيل القادم • Next-Gen Platform</div>
-          <h1 class="apple-story-title">قوة الآبل. وسرعة الفينتك.<br><span class="gradient-text">في قلب مركزك التعليمي.</span></h1>
-          <p class="apple-story-desc">تصميم فائق الدقة وهندسة برمجية متقدمة للمراكز التعليمية، تمكّن الإداريين والمدرسين والطلاب من إدارة العمليات اللحظية بلمسة واحدة.</p>
-        </div>
-
-        <div class="apple-story-slide" id="storySlide1" style="opacity: 0; pointer-events: none;">
-          <div class="apple-badge-pill">حضور فوري • Instant Attendance</div>
-          <h1 class="apple-story-title">مسح ليزري ذكي بالباركود.<br><span class="gradient-text">حضور في أجزاء من الثانية.</span></h1>
-          <p class="apple-story-desc">ماسح Kiosk فائق السرعة يدعم الباركود والـ QR، يقرأ بطاقة الطالب، يخصم الحصة، ويرسل إشعاراً فورياً لوالد الطالب عبر واتساب دون أي تأخير.</p>
-        </div>
-
-        <div class="apple-story-slide" id="storySlide2" style="opacity: 0; pointer-events: none;">
-          <div class="apple-badge-pill">إدارة مالية واشتراكات • Fintech Engine</div>
-          <h1 class="apple-story-title">اشتراكات، فواتير إلكترونية،<br><span class="gradient-text">وربط فوري مع InstaPay.</span></h1>
-          <p class="apple-story-desc">دفاتر مالية مشفرة وغير قابلة للتلاعب، حساب عمولات ومستحقات المدرسين بدقة السنتيمتر المالي، وتقارير أرباح لحظية قابلة للتصدير.</p>
-        </div>
+  <main class="school-entry">
+    <div class="school-hero">
+      <span class="school-kicker"><span aria-hidden="true">✦</span> كلّنا جزء من رحلة التعلّم</span>
+      <h1>مساحة أكبر.<br>لتعلّم <span class="school-circled">أفضل.</span></h1>
+      <p>طلابك، حصصك، وكل تفاصيل يومك التعليمي.<br>معًا في مكان واحد، لتتفرّغ لما يهم.</p>
+      <div class="school-hero-tags"><span>إدارة الطلاب</span><span>الحضور والحصص</span><span>المعلّم ووليّ الأمر</span></div>
+      <div class="school-art" aria-hidden="true">
+        <div class="school-orbit"></div><div class="school-lime-disc"></div>
+        <div class="school-book"><svg viewBox="0 0 180 150" fill="none"><path d="M90 29C67 13 35 13 13 23v101c25-10 51-7 77 9 26-16 52-19 77-9V23c-22-10-54-10-77 6Z" fill="#F3F0E9" stroke="#30205C" stroke-width="5"/><path d="M90 30v103M32 45c13-2 25 0 37 5M32 62c13-2 25 0 37 5M111 50c12-5 24-7 37-5M111 67c12-5 24-7 37-5" stroke="#5C2AC6" stroke-width="5" stroke-linecap="round"/><path d="m39 94 11 10 21-23" stroke="#5C2AC6" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="131" cy="98" r="16" fill="#C3FF3D"/></svg></div>
+        <span class="school-sticker school-sticker-one">أفكار تكبر <b>↗</b></span>
+        <span class="school-sticker school-sticker-two"><b>✓</b> كل خطوة، إنجاز</span>
+        <span class="school-spark">✳</span>
       </div>
-
-      <!-- Apple Scroll Hint -->
-      <div class="apple-scroll-hint" id="appleScrollHint">
-        <div class="apple-mouse-icon">
-          <div class="apple-wheel-dot"></div>
-        </div>
-        <div class="apple-hint-text">مرر للأسفل لاكتشاف المنصة • Scroll to explore</div>
-        <div class="apple-hint-progress">
-          <div class="apple-hint-progress-bar" id="appleProgressBar"></div>
-        </div>
-      </div>
-
-      <!-- Fintech Glassmorphic Login Card (Docks in spotlight at 100% scroll) -->
-      <div class="role-gate-card apple-login-card" id="appleLoginCard">
-        <div class="role-gate-mark">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-        </div>
-        <h1>تسجيل الدخول للمنصة</h1>
-        <p>بوابة متكاملة لإدارة المراكز التعليمية بأسلوب فينتك عصري وفائق السرعة</p>
-
+      <div class="school-hero-foot"><span>نتعلّم. نتابع. نتقدّم.</span><span aria-hidden="true">↗</span></div>
+    </div>
+    <div class="school-login-wrap">
+      <div class="role-gate-card school-login-card" id="appleLoginCard">
+        <span class="school-form-eyebrow">أهلًا بعودتك <span aria-hidden="true">✦</span></span>
+        <h2>يوم تعليمي جديد<br>يبدأ من هنا.</h2>
+        <p>سجّل الدخول للوصول إلى مساحتك في السنتر.</p>
         <form class="auth-form" id="authForm" onsubmit="return handleLogin(event)">
-          <div class="field">
-            <label for="loginEmail">البريد الإلكتروني</label>
-            <input id="loginEmail" name="email" type="email" required placeholder="owner@example.local" dir="ltr">
-          </div>
-          <div class="field">
-            <label for="loginPassword">كلمة المرور</label>
-            <input id="loginPassword" name="password" type="password" required placeholder="••••••••" dir="ltr">
-          </div>
-          <div class="field" id="mfaField" style="display:none">
-            <label for="loginMfa">رمز التحقق المؤقت (MFA)</label>
-            <input id="loginMfa" name="mfaCode" type="text" pattern="[0-9]{6}" maxlength="6" placeholder="000000" dir="ltr">
-          </div>
-          <button class="btn btn-block" id="loginBtn" type="submit">تسجيل الدخول الآن</button>
-          <p class="auth-status" id="authStatus"></p>
+          <div class="field"><label for="loginEmail">البريد الإلكتروني</label><input id="loginEmail" name="email" type="email" required placeholder="name@example.com" autocomplete="username" dir="ltr"></div>
+          <div class="field"><label for="loginPassword">كلمة المرور</label><input id="loginPassword" name="password" type="password" required placeholder="••••••••" autocomplete="current-password" dir="ltr"></div>
+          <div class="field" id="mfaField" style="display:none"><label for="loginMfa">رمز التحقق المؤقت (MFA)</label><input id="loginMfa" name="mfaCode" type="text" pattern="[0-9]{6}" maxlength="6" placeholder="000000" autocomplete="one-time-code" dir="ltr"></div>
+          <button class="btn btn-block" id="loginBtn" type="submit">الدخول إلى مساحتك <span aria-hidden="true">↗</span></button>
+          <p class="auth-status" id="authStatus" role="status" aria-live="polite"></p>
         </form>
-
-        <div class="quick-accounts-title">حسابات التجربة السريعة (Seed Accounts)</div>
+        <div class="school-demo-divider"><span>تعرّف على المنصة</span></div>
+        <div class="quick-accounts-title">حسابات تجريبية لاستكشاف الأدوار</div>
         <div class="quick-accounts-grid">
-          <button class="quick-acc-btn" type="button" onclick="fillQuickLogin('owner@example.local', 'ChangeMe123!')">
-            <span class="icon">👑</span>
-            <div class="info">
-              <span class="title">مدير السنتر</span>
-              <span class="sub">owner@example.local</span>
-            </div>
-          </button>
-          <button class="quick-acc-btn" type="button" onclick="fillQuickLogin('teacher1@demo.local', 'ChangeMe123!')">
-            <span class="icon">👨‍🏫</span>
-            <div class="info">
-              <span class="title">المدرس</span>
-              <span class="sub">teacher1@demo.local</span>
-            </div>
-          </button>
-          <button class="quick-acc-btn" type="button" onclick="fillQuickLogin('student1@demo.local', 'ChangeMe123!')">
-            <span class="icon">🎓</span>
-            <div class="info">
-              <span class="title">الطالب</span>
-              <span class="sub">student1@demo.local</span>
-            </div>
-          </button>
-          <button class="quick-acc-btn" type="button" onclick="fillQuickLogin('parent1@demo.local', 'ChangeMe123!')">
-            <span class="icon">👨‍👩‍👧</span>
-            <div class="info">
-              <span class="title">ولي الأمر</span>
-              <span class="sub">parent1@demo.local</span>
-            </div>
-          </button>
+          <button class="quick-acc-btn" type="button" onclick="fillQuickLogin('owner@example.local', 'ChangeMe123!')"><span class="school-role-symbol" aria-hidden="true">↗</span><span class="info"><span class="title">مدير السنتر</span><span class="sub">الإدارة والمتابعة</span></span></button>
+          <button class="quick-acc-btn" type="button" onclick="fillQuickLogin('teacher1@demo.local', 'ChangeMe123!')"><span class="school-role-symbol" aria-hidden="true">✎</span><span class="info"><span class="title">المعلّم</span><span class="sub">الحصص والطلاب</span></span></button>
+          <button class="quick-acc-btn" type="button" onclick="fillQuickLogin('student1@demo.local', 'ChangeMe123!')"><span class="school-role-symbol" aria-hidden="true">✦</span><span class="info"><span class="title">الطالب</span><span class="sub">رحلة التعلّم</span></span></button>
+          <button class="quick-acc-btn" type="button" onclick="fillQuickLogin('parent1@demo.local', 'ChangeMe123!')"><span class="school-role-symbol" aria-hidden="true">♡</span><span class="info"><span class="title">وليّ الأمر</span><span class="sub">متابعة الأبناء</span></span></button>
         </div>
+        <p class="school-login-note">حساب واحد، ومساحة تناسب دورك.</p>
       </div>
     </div>
-  </div>
+  </main>
 </section>
+
 
 <!-- SIDEBAR -->
 <aside class="sidebar" id="sidebar">
@@ -1687,6 +1835,7 @@ dialog.custom-modal::backdrop {
       <h2 id="sidebarCenterName">سنتر أجيال التعليمي</h2>
       <span>نظام الإدارة السحابي v2.5</span>
     </div>
+    <button class="icon-btn school-menu-close" type="button" aria-label="إغلاق القائمة" onclick="toggleSidebar()">×</button>
   </div>
 
   <nav class="nav-menu" id="navMenu">
@@ -1712,7 +1861,7 @@ dialog.custom-modal::backdrop {
   <!-- TOPBAR -->
   <header class="topbar">
     <div class="topbar-right">
-      <button class="icon-btn" id="mobileMenuBtn" style="display:none" onclick="toggleSidebar()">
+      <button class="icon-btn" id="mobileMenuBtn" aria-label="فتح القائمة" aria-expanded="false" aria-controls="sidebar" style="display:none" onclick="toggleSidebar()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
       <div class="topbar-title">
@@ -2084,8 +2233,16 @@ function buildNavigationForRole(role) {
   }
 }
 
+function toggleSidebar() {
+  var sidebar = document.getElementById('sidebar');
+  var expanded = sidebar.classList.toggle('mobile-open');
+  document.getElementById('mobileMenuBtn').setAttribute('aria-expanded', String(expanded));
+}
+
 function switchView(viewId) {
   STATE.activeView = viewId;
+  document.getElementById('sidebar').classList.remove('mobile-open');
+  document.getElementById('mobileMenuBtn').setAttribute('aria-expanded', 'false');
   
   document.querySelectorAll('.nav-item').forEach(function(el) {
     el.classList.remove('active');
@@ -2180,9 +2337,9 @@ function renderDashboardView(c) {
   var activeSessions = STATE.sessions.filter(function(s) { return s.status === 'active'; }).length || 3;
 
   c.innerHTML = `
-    <div class="view-header">
+    <div class="view-header school-dashboard-header">
       <div class="view-title-group">
-        <h1>لوحة التحكم التنفيذية</h1>
+        <span class="school-dashboard-eyebrow">✦ مساحة العمل اليومية</span><h1>كل تفاصيل سنترك، معًا.</h1>
         <p>نظرة عامة على مؤشرات الأداء، الحصص الحالية، والتحصيل المالي في السنتر</p>
       </div>
       <div class="view-actions">
@@ -2242,7 +2399,7 @@ function renderDashboardView(c) {
     </div>
 
     <!-- ONGOING SESSIONS RADAR & ACTIONS -->
-    <div style="display:grid;grid-template-columns:2fr 1fr;gap:24px;margin-bottom:28px">
+    <div class="dashboard-layout" style="display:grid;grid-template-columns:2fr 1fr;gap:24px;margin-bottom:28px">
       <div class="panel" style="margin-bottom:0">
         <div class="panel-header">
           <div>
@@ -3590,7 +3747,7 @@ function toggleTheme() {
 }
 
 function initTheme() {
-  var saved = localStorage.getItem('center_theme') || 'dark';
+  var saved = localStorage.getItem('center_theme') || 'light';
   document.documentElement.setAttribute('data-theme', saved);
 }
 
@@ -4147,4 +4304,4 @@ window.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 </body>
-</html>
+   </html>
