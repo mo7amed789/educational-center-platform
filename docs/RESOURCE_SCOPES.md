@@ -49,6 +49,6 @@ A `TEACHER` must have a same-center teacher profile. Group scope also requires t
 
 ## Remaining audit and production gates
 
-This is not a platform-wide security approval. Remaining work includes permission-aware nested response fields, finance details returned by attendance/portal workflows, per-permission denial overrides, export semantics for other roles, and staff roles other than the primary-branch admin and assigned teacher. The old partial-payment/upsert accounting model still needs a separate billing review. Production migrations, deployment controls and role-by-role browser tests remain required in `ENTERPRISE_READINESS.md`.
+This is not a platform-wide security approval. Finance fields returned by attendance/profile workflows are addressed in [RESPONSE_VISIBILITY.md](RESPONSE_VISIBILITY.md). Remaining work includes other permission-aware nested fields, all resource-specific denial combinations, mixed-sheet export semantics and staff roles other than the primary-branch admin and assigned teacher. The old partial-payment/upsert accounting model still needs a separate billing review. Production migrations, deployment controls and role-by-role browser tests remain required in `ENTERPRISE_READINESS.md`.
 
 The branch regression suite uses disposable two-center, three-branch fixtures. It checks both denials and legitimate owner/cross-home-branch behavior, including forced audit failures. No real student or financial database is reset by the test setup.
