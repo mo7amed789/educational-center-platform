@@ -36,8 +36,19 @@ Current JSON import, Excel import/export and audit-log workflows describe the wh
 
 Student hard deletion returns 403 for branch admins, including alternate URL encodings of the numeric ID. A home-branch pupil can have academic or financial records in another branch, so a branch admin must not destroy that shared history. This is not an archival/deactivation workflow.
 
+## Assigned teachers
+
+A `TEACHER` must have a same-center teacher profile. Group scope also requires that profile's `userId` to match the authenticated teacher. A foreign or missing profile never widens access.
+
+- Student lists expose only assigned pupils and only assigned enrollment IDs. Assigned-detail permission can open that pupil's detail route, but the route keeps enrollment and attendance history inside the teacher's groups.
+- Overview returns the teacher's own profile and classrooms used by assigned schedules or lessons, not unrelated teacher contact records or room inventory.
+- A scan can select only the teacher's enrolled groups, even when a different teacher's class has today's lesson. The scoped lookup, attendance write and audit are one transaction. A failed audit restores the previous attendance state.
+- Explicit student, teacher, group, schedule, grade or payment action grants do not remove the existing-resource assignment predicate. A teacher replacing enrollment links can replace only their own groups' links and cannot remove another teacher's enrollment.
+- A teacher cannot hard-delete a shared pupil, even with a student-deletion action grant. That requires center-level authority because the pupil may have records with other teachers.
+- This does not grant teachers grade entry or finance permissions by default. Existing action permissions are still required.
+
 ## Remaining audit and production gates
 
-This is not a platform-wide security approval. Remaining work includes assigned-teacher reads and scan behavior, nested relation disclosure, per-permission response fields and denial overrides, export semantics for other roles, and staff roles other than the primary-branch admin. The old partial-payment/upsert accounting model still needs a separate billing review. Production migrations, deployment controls and role-by-role browser tests remain required in `ENTERPRISE_READINESS.md`.
+This is not a platform-wide security approval. Remaining work includes permission-aware nested response fields, finance details returned by attendance/portal workflows, per-permission denial overrides, export semantics for other roles, and staff roles other than the primary-branch admin and assigned teacher. The old partial-payment/upsert accounting model still needs a separate billing review. Production migrations, deployment controls and role-by-role browser tests remain required in `ENTERPRISE_READINESS.md`.
 
 The branch regression suite uses disposable two-center, three-branch fixtures. It checks both denials and legitimate owner/cross-home-branch behavior, including forced audit failures. No real student or financial database is reset by the test setup.
