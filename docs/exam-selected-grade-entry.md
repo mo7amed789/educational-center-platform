@@ -20,7 +20,7 @@ The existing Exams & Results draft form also retains direct name selection and g
 
 `GET /api/center/grades/exams?month=YYYY-MM` requires `academic.manage_grades` and an authorized staff role. It returns up to 200 unpublished exams in that month, scoped by center, primary branch or the teacher's current same-center assignment. Scheduling permission is not needed to choose an existing exam. `canManageExams` only controls the secondary scheduling link and does not grant permission.
 
-Detail and saves reuse `GET/POST /api/center/exams/:id/results`. Saves send only `studentId` and `score`. The existing transaction reloads the authorized exam, derives its metadata, validates current enrollment and maximum, rejects duplicates and published exams, and writes the existing result audit atomically. Draft results stay hidden from pupils and guardians. No new write path, schema migration, dependency or publication grant is introduced.
+Detail and saves reuse `GET/POST /api/center/exams/:id/results`. Saves send only `studentId` and `score`. The existing transaction reloads the authorized exam, derives its metadata, validates current enrollment and maximum, rejects duplicates and published exams, and writes the existing result audit atomically. Draft results stay hidden from pupils and guardians. No new write path, schema migration, dependency or publication grant is introduced. The new exam UI helpers live in a same-origin JavaScript asset served by a fixed route.
 
 Month, exam, mode and account changes invalidate pending lookups. Inputs are locked during a save. A successful save remains acknowledged if the following refresh fails; the form then blocks until detail can be reloaded. Conflicts refresh the current exam state without retrying the POST.
 
