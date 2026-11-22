@@ -2101,7 +2101,7 @@ var API_BASE = window.location.protocol === 'file:' ? 'http://127.0.0.1:3000' : 
 
 function api(endpoint, options) {
   var opts = options || {};
-  opts.headers = Object.assign(opts.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }, opts.headers || {});
+  opts.headers = Object.assign(opts.body && !(opts.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}, opts.headers || {});
   return fetch(API_BASE + endpoint, opts).then(function(res) {
     return res.json().catch(function() { return {}; }).then(function(data) {
       if (!res.ok) {
