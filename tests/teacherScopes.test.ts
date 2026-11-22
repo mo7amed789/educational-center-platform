@@ -7,7 +7,7 @@ describe('assigned teacher resource boundaries', () => {
   const app = buildApp();
   const own = 950001, other = 950002, foreign = 950003;
   const today = new Date().toISOString().slice(0, 10);
-  let center: string, teacherUser: string, cookie: string, ownBranch: string;
+  let center: string, teacherUser: string, cookie: string, ownBranch: string, staffCookie: string;
   beforeAll(async () => {
     center = (await prisma.center.create({ data: { slug: 'teacher-resources-a', name: 'Teaching A' } })).id;
     const foreignCenter = (await prisma.center.create({ data: { slug: 'teacher-resources-b', name: 'Teaching B' } })).id;
@@ -18,6 +18,8 @@ describe('assigned teacher resource boundaries', () => {
     const token = 'assigned-teacher-disposable-session';
     await prisma.session.create({ data: { id: createHash('sha256').update(token).digest('hex'), userId: user.id, centerId: center, expiresAt: new Date(Date.now() + 3600000) } });
     cookie = `center_session=${token}`;
+    const staff = await prisma.user.create({ data: { centerId: center, role: 'RECEPTIONIST', name: 'Scan staff', email: 'scan-staff@teacher-resources.test', passwordHash: 'unusable-fixture', centerMemberships: { create: { centerId: center, role: 'RECEPTIONIST' } } } });
+    const staffToken = 'scan-staff-disposable-session'; await prisma.session.create({ data: { id: createHash('sha256').update(staffToken).digest('hex'), userId: staff.id, centerId: center, expiresAt: new Date(Date.now() + 3600000) } }); staffCookie = 'center_session=' + staffToken;
     for (const id of [own, other, foreign]) {
       const centerId = id === foreign ? foreignCenter : center, branchId = id === own ? ownBranch : id === other ? siblingBranch : null;
       await prisma.teacher.create({ data: { id, centerId, branchId, userId: id === own ? user.id : null, name: `Teacher ${id}`, subject: 'Math', phone: id === own ? 'own-contact' : 'unrelated-contact' } });
@@ -32,7 +34,7 @@ describe('assigned teacher resource boundaries', () => {
   });
   afterAll(async () => { await app.close(); await prisma.$disconnect(); });
   let count = 0;
-  const request = (method: 'GET'|'POST'|'PATCH'|'PUT'|'DELETE', url: string, payload?: object) => app.inject({ method, url, remoteAddress: `192.0.2.${++count}`, headers: { cookie }, ...(payload ? { payload } : {}) });
+  const request = (method: 'GET'|'POST'|'PATCH'|'PUT'|'DELETE', url: string, payload?: object, asStaff = false) => app.inject({ method, url, remoteAddress: `192.0.2.${++count}`, headers: { cookie: asStaff ? staffCookie : cookie }, ...(payload ? { payload } : {}) });
   it('returns assigned students with only this teacher\'s enrollment IDs', async () => {
     const result = await request('GET', '/api/students'); expect(result.statusCode).toBe(200);
     expect(result.json().items.map((row: { id: number }) => row.id)).toEqual([own]);
@@ -58,13 +60,11 @@ describe('assigned teacher resource boundaries', () => {
   });
   it('denies a scan of an unassigned pupil without an attendance write', async () => {
     const before = await prisma.attendance.count({ where: { studentId: other } });
-    expect((await request('POST', '/api/center/attendance/scan', { code: String(other) })).statusCode).toBe(404);
+    expect((await request('POST', '/api/center/attendance/scan', { code: String(other) })).statusCode).toBe(403);
     expect(await prisma.attendance.count({ where: { studentId: other } })).toBe(before);
   });
-  it('scans a shared pupil only into the assigned class even if another class has today\'s lesson', async () => {
-    const result = await request('POST', '/api/center/attendance/scan', { code: String(own) }); expect(result.statusCode).toBe(200);
-    expect(result.json().group.id).toBe(own);
-    expect(await prisma.attendance.findUnique({ where: { studentId_groupId_date: { studentId: own, groupId: other, date: today } } })).toBeNull();
+  it('does not scan even an assigned shared pupil when the actor is a teacher', async () => {
+    const before = await prisma.attendance.count(); expect((await request('POST', '/api/center/attendance/scan', { code: String(own) })).statusCode).toBe(403); expect(await prisma.attendance.count()).toBe(before);
   });
   it('keeps attendance and session reads inside the assignment', async () => {
     for (const url of ['/api/center/attendance', '/api/center/sessions']) {
@@ -100,13 +100,13 @@ describe('assigned teacher resource boundaries', () => {
       expect((await request('GET', '/api/center/grades?month=2026-11')).json().items.map((row: { groupId: number }) => row.groupId)).toEqual([own]);
     } finally { await prisma.userPermission.deleteMany({ where: { userId: teacherUser, permissionKey: { in: [...permissions] } } }); }
   });
-  it('rolls a scan back when its audit fails', async () => {
+  it('rolls an authorized staff scan back when its audit fails', async () => {
     const where = { studentId_groupId_date: { studentId: own, groupId: own, date: today } };
     const before = await prisma.attendance.upsert({ where, update: { status: 'ABSENT', note: 'Rollback fixture' }, create: { studentId: own, groupId: own, date: today, status: 'ABSENT', note: 'Rollback fixture' } });
     await prisma.attendance.updateMany({ where: { studentId: own, date: today }, data: { status: 'ABSENT', note: 'Rollback fixture' } });
     const beforeRows = await prisma.attendance.findMany({ where: { studentId: own }, orderBy: [{ groupId: 'asc' }, { date: 'asc' }] });
-    await prisma.$executeRawUnsafe("CREATE TRIGGER teacher_scan_audit_fail BEFORE INSERT ON AuditLog WHEN NEW.action = 'attendance.scan' AND NEW.userId = (SELECT id FROM User WHERE email = 'assigned@teacher-resources.test') BEGIN SELECT RAISE(ABORT, 'fixture audit failure'); END");
-    try { expect((await request('POST', '/api/center/attendance/scan', { code: String(own) })).statusCode).toBe(500); }
+    await prisma.$executeRawUnsafe("CREATE TRIGGER teacher_scan_audit_fail BEFORE INSERT ON AuditLog WHEN NEW.action = 'attendance.scan' AND NEW.userId = (SELECT id FROM User WHERE email = 'scan-staff@teacher-resources.test') BEGIN SELECT RAISE(ABORT, 'fixture audit failure'); END");
+    try { expect((await request('POST', '/api/center/attendance/scan', { code: String(own) }, true)).statusCode).toBe(500); }
     finally { await prisma.$executeRawUnsafe('DROP TRIGGER teacher_scan_audit_fail'); }
     expect(await prisma.attendance.findUnique({ where })).toEqual(before);
     expect(await prisma.attendance.findMany({ where: { studentId: own }, orderBy: [{ groupId: 'asc' }, { date: 'asc' }] })).toEqual(beforeRows);
@@ -118,7 +118,7 @@ describe('assigned teacher resource boundaries', () => {
     try {
       expect((await request('GET', '/api/center/overview')).statusCode).toBe(403);
       expect((await request('GET', '/api/students')).json().items).toEqual([]);
-      expect((await request('POST', '/api/center/attendance/scan', { code: String(own) })).statusCode).toBe(404);
+      expect((await request('POST', '/api/center/attendance/scan', { code: String(own) })).statusCode).toBe(403);
     } finally { await prisma.teacher.update({ where: { id: own }, data: { centerId: teacher.centerId } }); }
   });
 });
