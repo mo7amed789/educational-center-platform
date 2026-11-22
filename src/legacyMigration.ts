@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from './prisma.js';
 
@@ -15,24 +16,24 @@ function daysToText(days: string[] | string | undefined): string {
   return Array.isArray(days) ? days.join(',') : String(days ?? '');
 }
 
-export async function migrateLegacyData(input: unknown, centerId: string) {
+export async function migrateLegacyData(input: unknown, centerId: string, transaction?: Prisma.TransactionClient) {
   const data = legacySchema.parse(input);
   const summary = { teachers: 0, groups: 0, students: 0, enrollments: 0, attendance: 0, payments: 0, skipped: [] as string[] };
-  await prisma.$transaction(async (tx) => {
+  const apply = async (tx: Prisma.TransactionClient) => {
     const teacherIds = new Set<number>();
     for (const teacher of data.teachers) {
-      await tx.teacher.upsert({ where: { id: teacher.id }, update: { centerId, name: teacher.name, subject: teacher.subject, phone: teacher.phone || null }, create: { id: teacher.id, centerId, name: teacher.name, subject: teacher.subject, phone: teacher.phone || null } });
+      await tx.teacher.upsert({ where: { id: teacher.id, centerId }, update: { name: teacher.name, subject: teacher.subject, phone: teacher.phone || null }, create: { id: teacher.id, centerId, name: teacher.name, subject: teacher.subject, phone: teacher.phone || null } });
       teacherIds.add(teacher.id); summary.teachers++;
     }
     const groupIds = new Set<number>();
     for (const group of data.groups) {
       if (!teacherIds.has(group.t)) { summary.skipped.push(`group:${group.id}:teacher:${group.t}`); continue; }
-      await tx.group.upsert({ where: { id: group.id }, update: { centerId, teacherId: group.t, grade: group.grade, days: daysToText(group.days), time: group.time, price: group.price }, create: { id: group.id, centerId, teacherId: group.t, grade: group.grade, days: daysToText(group.days), time: group.time, price: group.price } });
+      await tx.group.upsert({ where: { id: group.id, centerId }, update: { teacherId: group.t, grade: group.grade, days: daysToText(group.days), time: group.time, price: group.price }, create: { id: group.id, centerId, teacherId: group.t, grade: group.grade, days: daysToText(group.days), time: group.time, price: group.price } });
       groupIds.add(group.id); summary.groups++;
     }
     const studentIds = new Set<number>();
     for (const student of data.students) {
-      await tx.student.upsert({ where: { id: student.id }, update: { centerId, name: student.name, phone: student.phone || null, parent: student.parent || null }, create: { id: student.id, centerId, name: student.name, phone: student.phone || null, parent: student.parent || null } });
+      await tx.student.upsert({ where: { id: student.id, centerId }, update: { name: student.name, phone: student.phone || null, parent: student.parent || null }, create: { id: student.id, centerId, name: student.name, phone: student.phone || null, parent: student.parent || null } });
       studentIds.add(student.id); summary.students++;
       for (const groupId of student.g) {
         if (!groupIds.has(groupId)) { summary.skipped.push(`enrollment:${student.id}:${groupId}`); continue; }
@@ -58,7 +59,10 @@ export async function migrateLegacyData(input: unknown, centerId: string) {
       await tx.payment.upsert({ where: { studentId_groupId_month: { studentId, groupId, month } }, update: { status: 'paid', amount: group?.price ?? 0 }, create: { studentId, groupId, month, amount: group?.price ?? 0, status: 'paid' } });
       summary.payments++;
     }
-  });
+  };
+  // An outer import can include all sheets and its audit in the same transaction.
+  if (transaction) await apply(transaction);
+  else await prisma.$transaction(apply);
   return summary;
 }
 
