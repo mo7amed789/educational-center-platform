@@ -44,6 +44,18 @@ describe('teacher default grade entry', () => {
     expect(enrolled.json().students.map((s: { id: number }) => s.id)).toEqual([pupil]);
     for (const id of [unrelated, foreign]) expect((await request('GET', `/api/center/grades/enrollments?groupId=${id}`)).statusCode).toBe(404);
   });
+  it('loads non-seeded teacher groups independently of a failing grade history', async () => {
+    await prisma.$executeRawUnsafe('ALTER TABLE GradeRecord RENAME TO GradeRecord_history_failure');
+    try {
+      expect((await list()).statusCode).toBe(500);
+      const response = await request('GET', '/api/center/grades/groups');
+      expect(response.statusCode).toBe(200);
+      expect(response.json().groups.map((g: { groupId: number }) => g.groupId)).toEqual([own]);
+    } finally { await prisma.$executeRawUnsafe('ALTER TABLE GradeRecord_history_failure RENAME TO GradeRecord'); }
+  });
+  it('requires authentication for the independent group picker', async () => {
+    expect((await request('GET', '/api/center/grades/groups', undefined, 'none')).statusCode).toBe(401);
+  });
   it('records a real zero with the teacher identity and an atomic audit', async () => {
     const result = await save(); expect(result.statusCode).toBe(201);
     const id = result.json().grade.id;
@@ -63,28 +75,29 @@ describe('teacher default grade entry', () => {
   });
   it('rechecks group assignment on each read and write', async () => {
     await prisma.group.update({ where: { id: own }, data: { teacherId: unrelated } });
-    try { expect((await list()).json()).toMatchObject({ groups: [], items: [] }); expect((await save()).statusCode).toBe(422); }
+    try { expect((await list()).json()).toMatchObject({ groups: [], items: [] }); expect((await request('GET', '/api/center/grades/groups')).json().groups).toEqual([]); expect((await save()).statusCode).toBe(422); }
     finally { await prisma.group.update({ where: { id: own }, data: { teacherId: own } }); }
   });
   it('fails closed for a teacher profile in the wrong center or no linked profile', async () => {
     for (const data of [{ centerId: outside }, { centerId: center, userId: null }]) {
       await prisma.teacher.update({ where: { id: own }, data });
-      try { expect((await list()).json()).toMatchObject({ groups: [], items: [] }); expect((await save()).statusCode).toBe(422); }
+      try { expect((await list()).json()).toMatchObject({ groups: [], items: [] }); expect((await request('GET', '/api/center/grades/groups')).statusCode).toBe(403); expect((await save()).statusCode).toBe(422); }
       finally { await prisma.teacher.update({ where: { id: own }, data: { centerId: center, userId: users.teacher } }); }
     }
   });
   it('honors an explicit grade denial and inactive center membership', async () => {
     await prisma.userPermission.create({ data: { userId: users.teacher, permissionKey: 'academic.manage_grades', allowed: false } });
-    try { expect((await list()).statusCode).toBe(403); expect((await save()).statusCode).toBe(403); }
+    try { expect((await list()).statusCode).toBe(403); expect((await request('GET', '/api/center/grades/groups')).statusCode).toBe(403); expect((await save()).statusCode).toBe(403); }
     finally { await prisma.userPermission.deleteMany({ where: { userId: users.teacher } }); }
     await prisma.centerMembership.update({ where: { userId_centerId: { userId: users.teacher, centerId: center } }, data: { active: false } });
-    try { expect((await list()).statusCode).toBe(403); expect((await save()).statusCode).toBe(403); }
+    try { expect((await list()).statusCode).toBe(403); expect((await request('GET', '/api/center/grades/groups')).statusCode).toBe(403); expect((await save()).statusCode).toBe(403); }
     finally { await prisma.centerMembership.update({ where: { userId_centerId: { userId: users.teacher, centerId: center } }, data: { active: true } }); }
   });
   it.each(['student', 'parent'])('does not turn a %s permission override into staff access', async who => {
     await prisma.userPermission.create({ data: { userId: users[who], permissionKey: 'academic.manage_grades', allowed: true } });
     try {
       expect((await request('GET', '/api/center/grades?month=2026-11', undefined, who)).statusCode).toBe(403);
+      expect((await request('GET', '/api/center/grades/groups', undefined, who)).statusCode).toBe(403);
       expect((await request('GET', `/api/center/grades/enrollments?groupId=${own}`, undefined, who)).statusCode).toBe(403);
       expect((await save(payload, who)).statusCode).toBe(403);
     } finally { await prisma.userPermission.deleteMany({ where: { userId: users[who] } }); }
