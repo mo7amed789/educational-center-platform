@@ -78,6 +78,15 @@ export function registerMonthlyReportRoutes(app: FastifyInstance) {
     });
   }
 
+  // The group picker must not depend on a successful grade-history read.
+  app.get('/api/center/grades/groups', async (request, reply) => {
+    const user = await requireUser(request, reply); if (!user) return;
+    if (!user.centerId || ['STUDENT', 'GUARDIAN'].includes(user.role) || !(await authorize(user.id, 'academic.manage_grades', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
+    if (user.role === 'TEACHER' && !(await prisma.teacher.findFirst({ where: { userId: user.id, centerId: user.centerId }, select: { id: true } }))) return reply.code(403).send({ error: 'TEACHER_PROFILE_REQUIRED' });
+    const groups = await prisma.group.findMany({ where: assignedGroupScope(user), include: learningGroupInclude, orderBy: { id: 'asc' } });
+    return { groups: groups.map(group => groupLabel(group, user.centerId!)) };
+  });
+
   app.get('/api/center/grades/enrollments', async (request, reply) => {
     const user = await requireUser(request, reply); if (!user) return;
     if (!user.centerId || ['STUDENT', 'GUARDIAN'].includes(user.role) || !(await authorize(user.id, 'academic.manage_grades', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
@@ -124,4 +133,4 @@ export function registerMonthlyReportRoutes(app: FastifyInstance) {
     if (!result) return reply.code(422).send({ error: 'INVALID_ENROLLMENT' });
     return reply.code(201).send({ grade: { id: result.id, studentId: result.studentId, groupId: result.groupId, title: result.title, assessedOn: result.assessedOn, score: result.score, maxScore: result.maxScore } });
   });
-  }
+      }
