@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from './prisma.js';
 import { requireUser } from './auth.js';
 import { authorize } from './authorization.js';
+import { readMonthlyLearningReport, readLearningReport, learningGroupInclude, groupLabel } from './learningReports.js';
 
 const monthSchema = z.string().regex(/^(19|20|21)\d{2}-(0[1-9]|1[0-2])$/);
 const dateSchema = z.string().regex(/^(19|20|21)\d{2}-\d{2}-\d{2}$/).refine((value) => {
@@ -16,45 +17,8 @@ const gradeInput = z.object({
   score: z.number().finite().nonnegative(), maxScore: z.number().finite().positive(),
 }).refine((value) => value.score <= value.maxScore);
 
-function monthRange(month: string) {
-  const [year, number] = month.split('-').map(Number);
-  return { gte: month + '-01', lt: number === 12 ? `${year + 1}-01-01` : `${year}-${String(number + 1).padStart(2, '0')}-01` };
-}
 
-function attendanceStatus(status: string) {
-  const normalized = status.toUpperCase();
-  return ({ P: 'PRESENT', A: 'ABSENT', L: 'LATE', E: 'EXCUSED' } as Record<string, string>)[normalized]
-    || (['PRESENT', 'ABSENT', 'LATE', 'EXCUSED'].includes(normalized) ? normalized : 'UNKNOWN');
-}
-
-function summary(records: Array<{ status: string }>) {
-  const result = { recorded: records.length, present: 0, absent: 0, late: 0, excused: 0, unknown: 0, attendanceRate: null as number | null };
-  for (const row of records) {
-    const status = attendanceStatus(row.status);
-    if (status === 'PRESENT') result.present += 1;
-    else if (status === 'ABSENT') result.absent += 1;
-    else if (status === 'LATE') result.late += 1;
-    else if (status === 'EXCUSED') result.excused += 1;
-    else result.unknown += 1;
-  }
-  const denominator = result.present + result.late + result.absent;
-  if (denominator > 0) result.attendanceRate = Math.round(100 * (result.present + result.late) / denominator);
-  return result;
-}
-
-type SubjectGroup = {
-  id: number; grade: string; centerId: string;
-  teacher: { name: string; subject: string; centerId: string };
-  course: { name: string; subject: string; centerId: string } | null;
-};
-function groupLabel(group: SubjectGroup, centerId: string) {
-  return {
-    groupId: group.id, group: group.grade,
-    subject: group.course?.centerId === centerId ? group.course.subject : group.teacher.centerId === centerId ? group.teacher.subject : 'مادة غير محددة',
-    teacher: group.teacher.centerId === centerId ? group.teacher.name : '',
-  };
-}
-const groupInclude = { teacher: true, course: true } as const;
+function monthRange(month: string) { const [year, number] = month.split('-').map(Number); return { gte: month + '-01', lt: number === 12 ? `${year + 1}-01-01` : `${year}-${String(number + 1).padStart(2, '0')}-01` }; }
 
 async function parentUser(request: FastifyRequest, reply: FastifyReply) {
   const user = await requireUser(request, reply);
@@ -93,23 +57,25 @@ export function registerMonthlyReportRoutes(app: FastifyInstance) {
       select: { id: true, name: true },
     });
     if (!student) return reply.code(404).send({ error: 'CHILD_NOT_FOUND' });
-    const range = monthRange(month);
-    const [attendance, grades] = await prisma.$transaction([
-      prisma.attendance.findMany({ where: { studentId, student: { centerId }, group: { centerId }, date: range }, include: { group: { include: groupInclude } }, orderBy: [{ date: 'asc' }, { groupId: 'asc' }] }),
-      prisma.gradeRecord.findMany({ where: { studentId, student: { centerId }, group: { centerId }, assessedOn: range }, include: { group: { include: groupInclude } }, orderBy: [{ assessedOn: 'asc' }, { createdAt: 'asc' }] }),
-    ]);
-    const attendanceRows = attendance.map((row) => ({ date: row.date, status: attendanceStatus(row.status), ...groupLabel(row.group, centerId) }));
-    const gradeRows = grades.map((row) => ({ id: row.id, title: row.title, assessedOn: row.assessedOn, score: row.score, maxScore: row.maxScore, percentage: Math.round(row.score / row.maxScore * 1000) / 10, ...groupLabel(row.group, centerId) }));
-    const groupIds = [...new Set([...attendance.map((row) => row.groupId), ...grades.map((row) => row.groupId)])];
-    const subjects = groupIds.map((groupId) => {
-      const group = attendance.find((row) => row.groupId === groupId)?.group || grades.find((row) => row.groupId === groupId)!.group;
-      const marks = grades.filter((row) => row.groupId === groupId);
-      const score = marks.reduce((total, row) => total + row.score, 0);
-      const maxScore = marks.reduce((total, row) => total + row.maxScore, 0);
-      return { ...groupLabel(group, centerId), attendance: summary(attendanceRows.filter((row) => row.groupId === groupId)), gradeCount: marks.length, score, maxScore, percentage: maxScore ? Math.round(score / maxScore * 1000) / 10 : null };
-    });
-    return { student, month, attendance: { summary: summary(attendanceRows), records: attendanceRows }, grades: gradeRows, subjects };
+    return prisma.$transaction((tx) => readMonthlyLearningReport(tx, student, centerId, month));
   });
+
+  for (const parent of [true, false]) {
+    app.get(parent ? '/api/portal/parent/learning-report' : '/api/portal/student/learning-report', async (request, reply) => {
+      const user = parent ? await parentUser(request, reply) : await requireUser(request, reply); if (!user) return;
+      if (!parent && (user.role !== 'STUDENT' || !user.centerId ||
+          !(await authorize(user.id, 'attendance.view', { centerId: user.centerId })) ||
+          !(await authorize(user.id, 'academic.view', { centerId: user.centerId })))) return reply.code(403).send({ error: 'FORBIDDEN' });
+      const query = (parent ? z.object({ month: monthSchema, date: dateSchema, studentId: z.coerce.number().int().positive().max(2147483647) }).strict() : z.object({ month: monthSchema, date: dateSchema }).strict()).safeParse(request.query);
+      if (!query.success) return reply.code(422).send({ error: 'INVALID_INPUT' });
+      const centerId = user.centerId!;
+      const student = await prisma.student.findFirst({ where: { centerId,
+        ...(parent && 'studentId' in query.data ? { id: Number(query.data.studentId), guardianLinks: { some: { guardian: { userId: user.id, centerId } } } } : { userId: user.id }),
+      }, select: { id: true, name: true } });
+      if (!student) return reply.code(404).send({ error: parent ? 'CHILD_NOT_FOUND' : 'STUDENT_PROFILE_NOT_LINKED' });
+      return prisma.$transaction(tx => readLearningReport(tx, student, centerId, query.data.month, query.data.date));
+    });
+  }
 
   app.get('/api/center/grades/enrollments', async (request, reply) => {
     const user = await requireUser(request, reply); if (!user) return;
@@ -131,7 +97,7 @@ export function registerMonthlyReportRoutes(app: FastifyInstance) {
     if (user.role === 'BRANCH_ADMIN' && !user.branchId) return reply.code(403).send({ error: 'FORBIDDEN' });
     const items = await prisma.gradeRecord.findMany({
       where: { student: { centerId: user.centerId }, group: { centerId: user.centerId, ...(user.role === 'BRANCH_ADMIN' ? { branchId: user.branchId } : {}) }, assessedOn: monthRange(query.data.month), ...(query.data.studentId ? { studentId: query.data.studentId } : {}) },
-      include: { student: { select: { id: true, name: true } }, group: { include: groupInclude } },
+      include: { student: { select: { id: true, name: true } }, group: { include: learningGroupInclude } },
       orderBy: [{ assessedOn: 'desc' }, { createdAt: 'desc' }], take: 500,
     });
     return { items: items.map((row) => ({ id: row.id, student: row.student, title: row.title, assessedOn: row.assessedOn, score: row.score, maxScore: row.maxScore, ...groupLabel(row.group, user.centerId!) })), limit: 500 };
@@ -156,4 +122,4 @@ export function registerMonthlyReportRoutes(app: FastifyInstance) {
     if (!result) return reply.code(422).send({ error: 'INVALID_ENROLLMENT' });
     return reply.code(201).send({ grade: { id: result.id, studentId: result.studentId, groupId: result.groupId, title: result.title, assessedOn: result.assessedOn, score: result.score, maxScore: result.maxScore } });
   });
-}
+                                        }
