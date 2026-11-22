@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { prisma } from './prisma.js';
 import { registerMonthlyReportRoutes } from './monthlyReports.js';
 import { registerSelectedAttendanceRoutes } from './selectedAttendance.js';
+import { registerExamRoutes } from './exams.js';
 import { createSession, destroySession, publicUser, requirePermission, requireUser, currentUser, generateMfaSecret, verifyMfaCode, SESSION_COOKIE } from './auth.js';
 import { authorize } from './authorization.js';
 import { migrateLegacyData } from './legacyMigration.js';
@@ -469,14 +470,17 @@ export function buildApp() {
     const existing = await prisma.student.findFirst({ where: { id: params.id, centerId: user.centerId } });
     if (!existing) return reply.code(404).send({ error: 'STUDENT_NOT_FOUND' });
 
-    await prisma.$transaction(async (tx) => {
+    const deleted = await prisma.$transaction(async (tx) => {
+      if (await tx.gradeCorrection.count({ where: { gradeRecord: { studentId: params.id } } })) return false;
       await tx.enrollment.deleteMany({ where: { studentId: params.id } });
       await tx.attendance.deleteMany({ where: { studentId: params.id } });
       await tx.subscription.deleteMany({ where: { studentId: params.id } });
       await tx.payment.deleteMany({ where: { studentId: params.id } });
       await tx.studentGuardian.deleteMany({ where: { studentId: params.id } });
       await tx.student.delete({ where: { id: params.id } });
+      return true;
     });
+    if (!deleted) return reply.code(409).send({ error: 'STUDENT_HAS_GRADE_HISTORY' });
 
     await prisma.auditLog.create({
       data: { centerId: user.centerId, userId: user.id, action: 'students.delete', entity: 'Student', entityId: String(params.id) },
@@ -878,6 +882,7 @@ export function buildApp() {
   registerAutoUpdateRoutes(app);
   registerMonthlyReportRoutes(app);
   registerSelectedAttendanceRoutes(app);
+  registerExamRoutes(app);
 
   // SESSIONS STATUS PATCH
   app.patch('/api/center/sessions/:id', async (request, reply) => {

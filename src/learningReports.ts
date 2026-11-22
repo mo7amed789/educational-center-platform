@@ -1,5 +1,9 @@
 import type { Prisma } from '@prisma/client';
 
+function visibleGrades(centerId: string): Prisma.GradeRecordWhereInput { return { OR: [{ examId: null }, { exam: { publishedAt: { not: null }, group: { centerId } } }] }; }
+const gradeExam = { select: { groupId: true } } as const;
+function consistentExam(row: { groupId: number; exam: { groupId: number } | null }) { return !row.exam || row.exam.groupId === row.groupId; }
+
 type StudentLabel = { id: number; name: string };
 function monthRange(month: string) {
   const [year, number] = month.split('-').map(Number);
@@ -45,10 +49,11 @@ export const learningGroupInclude = { teacher: { select: { name: true, subject: 
 export async function readMonthlyLearningReport(client: Prisma.TransactionClient, student: StudentLabel, centerId: string, month: string) {
   const studentId = student.id;
   const range = monthRange(month);
-  const [attendance, grades] = await Promise.all([
+  const [attendance, rawGrades] = await Promise.all([
     client.attendance.findMany({ where: { studentId, student: { centerId }, group: { centerId }, date: range }, include: { group: { include: learningGroupInclude } }, orderBy: [{ date: 'asc' }, { groupId: 'asc' }] }),
-    client.gradeRecord.findMany({ where: { studentId, student: { centerId }, group: { centerId }, assessedOn: range }, include: { group: { include: learningGroupInclude } }, orderBy: [{ assessedOn: 'asc' }, { createdAt: 'asc' }] }),
+    client.gradeRecord.findMany({ where: { ...visibleGrades(centerId), studentId, student: { centerId }, group: { centerId }, assessedOn: range }, include: { group: { include: learningGroupInclude }, exam: gradeExam }, orderBy: [{ assessedOn: 'asc' }, { createdAt: 'asc' }] }),
   ]);
+  const grades = rawGrades.filter(consistentExam);
   const attendanceRows = attendance.map((row) => ({ date: row.date, status: attendanceStatus(row.status), ...groupLabel(row.group, centerId) }));
   const gradeRows = grades.map((row) => ({ id: row.id, title: row.title, assessedOn: row.assessedOn, score: row.score, maxScore: row.maxScore, percentage: Math.round(row.score / row.maxScore * 1000) / 10, ...groupLabel(row.group, centerId) }));
   const groupIds = [...new Set([...attendance.map((row) => row.groupId), ...grades.map((row) => row.groupId)])];
@@ -64,13 +69,16 @@ export async function readMonthlyLearningReport(client: Prisma.TransactionClient
 
 export async function readLearningReport(client: Prisma.TransactionClient, student: StudentLabel, centerId: string, month: string, date: string) {
   const studentId = student.id;
-  const [report, enrollments, lessons, attendance, recentGrades] = await Promise.all([
+  const [report, enrollments, lessons, attendance, rawRecentGrades, examSchedule, rawExamResults] = await Promise.all([
     readMonthlyLearningReport(client, student, centerId, month),
     client.enrollment.findMany({ where: { studentId, student: { centerId }, group: { centerId } }, include: { group: { include: learningGroupInclude } }, orderBy: { groupId: 'asc' } }),
     client.lessonSession.findMany({ where: { date, group: { centerId, enrollments: { some: { studentId, student: { centerId } } } } }, include: { group: { include: learningGroupInclude } }, orderBy: [{ startsAt: 'asc' }, { groupId: 'asc' }] }),
     client.attendance.findMany({ where: { studentId, student: { centerId }, group: { centerId }, date }, include: { group: { include: learningGroupInclude } }, orderBy: { groupId: 'asc' } }),
-    client.gradeRecord.findMany({ where: { studentId, student: { centerId }, group: { centerId }, assessedOn: { lte: date } }, include: { group: { include: learningGroupInclude } }, orderBy: [{ assessedOn: 'desc' }, { createdAt: 'desc' }, { id: 'asc' }], take: 5 }),
+    client.gradeRecord.findMany({ where: { ...visibleGrades(centerId), studentId, student: { centerId }, group: { centerId }, assessedOn: { lte: date } }, include: { group: { include: learningGroupInclude }, exam: gradeExam }, orderBy: [{ assessedOn: 'desc' }, { createdAt: 'desc' }, { id: 'asc' }], take: 5 }),
+    client.exam.findMany({ where: { date: { gte: date }, group: { centerId, enrollments: { some: { studentId } } } }, include: { group: { include: learningGroupInclude } }, orderBy: [{ date: 'asc' }, { startsAt: 'asc' }, { id: 'asc' }], take: 20 }),
+    client.gradeRecord.findMany({ where: { ...visibleGrades(centerId), examId: { not: null }, studentId, student: { centerId }, group: { centerId } }, include: { group: { include: learningGroupInclude }, exam: gradeExam }, orderBy: [{ assessedOn: 'desc' }, { createdAt: 'desc' }, { id: 'asc' }], take: 20 }),
   ]);
+  const recentGrades = rawRecentGrades.filter(consistentExam), examResults = rawExamResults.filter(consistentExam);
   const groups = new Map<number, (typeof lessons)[number]['group']>();
   for (const row of lessons) groups.set(row.groupId, row.group);
   for (const row of attendance) groups.set(row.groupId, row.group);
@@ -83,5 +91,5 @@ export async function readLearningReport(client: Prisma.TransactionClient, stude
   // Keep the old monthly endpoint's shape; the new unified view also lists unrecorded enrolled subjects.
   const subjects = [...report.subjects];
   for (const { group } of enrollments) if (!subjects.some(row => row.groupId === group.id)) subjects.push({ ...groupLabel(group, centerId), attendance: summary([]), gradeCount: 0, score: 0, maxScore: 0, percentage: null });
-  return { student, date, month, today, recentGrades: recentGrades.map(row => ({ id: row.id, ...groupLabel(row.group, centerId), title: row.title, assessedOn: row.assessedOn, score: row.score, maxScore: row.maxScore, percentage: Math.round(row.score / row.maxScore * 1000) / 10 })), report: { ...report, subjects }, code: `STUDENT:${studentId}` };
+  return { student, date, month, today, examSchedule: examSchedule.map(exam => ({ id: exam.id, title: exam.title, date: exam.date, startsAt: exam.startsAt, endsAt: exam.endsAt, timezone: exam.timezone, maxScore: exam.maxScore, ...groupLabel(exam.group, centerId) })), examResults: examResults.map(row => ({ examId: row.examId, revision: row.revision, title: row.title, assessedOn: row.assessedOn, score: row.score, maxScore: row.maxScore, ...groupLabel(row.group, centerId) })), recentGrades: recentGrades.map(row => ({ id: row.id, ...groupLabel(row.group, centerId), title: row.title, assessedOn: row.assessedOn, score: row.score, maxScore: row.maxScore, percentage: Math.round(row.score / row.maxScore * 1000) / 10 })), report: { ...report, subjects }, code: `STUDENT:${studentId}` };
 }

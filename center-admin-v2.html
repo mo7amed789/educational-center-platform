@@ -1803,7 +1803,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .monthly-empty { padding: 28px 16px; color: var(--tx-muted); line-height: 1.9; }
 .monthly-form-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; }
 .monthly-form-grid .field { min-width: 0; }
-.monthly-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 @media(max-width: 700px) {
  .monthly-hero { padding: 22px 18px; }
  .monthly-summary { grid-template-columns: repeat(2,minmax(0,1fr)); }
@@ -1814,6 +1813,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
  .monthly-controls .field { max-width: none; flex-basis: 100%; }
 }
 
+
+.monthly-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+
+.monthly-fieldset{border:0;padding:0;margin:0;min-width:0}.monthly-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:16px;margin-bottom:20px}.monthly-form-grid .field input,.monthly-form-grid .field select{width:100%;min-width:0}.exam-actions{display:flex;flex-wrap:wrap;gap:8px}.learning-day-card h3,.learning-day-card p{overflow-wrap:anywhere}.monthly-controls .field{min-width:0;max-width:100%}
 
 .attendance-code-form { display:flex; align-items:flex-end; flex-wrap:wrap; gap:12px; }
 .attendance-code-form .field { flex:1 1 220px; margin:0; }
@@ -2227,6 +2230,7 @@ function initSession(user) {
   ATTENDANCE_PAGE = newAttendancePage();
   PARENT_REPORT = newParentReport();
   GRADE_ENTRY = newGradeEntry();
+  EXAM_PAGE = newExamPage();
   buildNavigationForRole(role);
   loadAllCenterData();
 }
@@ -2264,6 +2268,7 @@ var ALL_TABS = [
   { id: 'schedule', title: 'جدول الحصص', icon: 'calendar', roles: ['SUPER_ADMIN', 'CENTER_OWNER', 'CENTER_ADMIN', 'BRANCH_ADMIN', 'RECEPTIONIST', 'TEACHER'] },
   { id: 'kiosk', title: 'كشك المسح السريع', icon: 'scan', roles: ['SUPER_ADMIN', 'CENTER_OWNER', 'CENTER_ADMIN', 'BRANCH_ADMIN', 'RECEPTIONIST'] },
   { id: 'attendance', title: 'سجل الحضور', icon: 'check', roles: ['SUPER_ADMIN', 'CENTER_OWNER', 'CENTER_ADMIN', 'BRANCH_ADMIN', 'RECEPTIONIST', 'TEACHER'] },
+  { id: 'exams', title: 'الامتحانات والنتائج', icon: 'calendar', roles: ['SUPER_ADMIN', 'CENTER_OWNER', 'CENTER_ADMIN', 'BRANCH_ADMIN', 'TEACHER'] },
   { id: 'grades', title: 'درجات الطلاب', icon: 'chart', roles: ['SUPER_ADMIN', 'CENTER_OWNER', 'CENTER_ADMIN', 'BRANCH_ADMIN'] },
   { id: 'subscriptions', title: 'الاشتراكات والفوترة', icon: 'receipt', roles: ['SUPER_ADMIN', 'CENTER_OWNER', 'CENTER_ADMIN', 'BRANCH_ADMIN', 'ACCOUNTANT'] },
   { id: 'reports', title: 'التقارير المالية', icon: 'chart', roles: ['SUPER_ADMIN', 'CENTER_OWNER', 'CENTER_ADMIN', 'ACCOUNTANT'] },
@@ -2404,6 +2409,7 @@ function renderActiveView() {
     case 'schedule': renderScheduleView(container); break;
     case 'kiosk': renderKioskView(container); break;
     case 'attendance': renderAttendanceView(container); break;
+    case 'exams': renderExamsView(container); break;
     case 'grades': renderGradesView(container); break;
     case 'subscriptions': renderSubscriptionsView(container); break;
     case 'reports': renderReportsView(container); break;
@@ -3317,7 +3323,7 @@ function loadLearningRole(parent) {
   if (parent) url += '&studentId=' + encodeURIComponent(state.studentId);
   return api(url).then(function(data) {
     if (!learningStateCurrent(state, sequence, userId, parent)) return;
-    state.report = data.report; state.today = data.today; state.recentGrades = data.recentGrades; state.student = data.student; state.code = data.code; state.loaded = true;
+    state.examSchedule = data.examSchedule; state.examResults = data.examResults; state.report = data.report; state.today = data.today; state.recentGrades = data.recentGrades; state.student = data.student; state.code = data.code; state.loaded = true;
   }).catch(function(error) {
     if (!learningStateCurrent(state, sequence, userId, parent)) return;
     state.error = error.message === 'STUDENT_PROFILE_NOT_LINKED' ? 'حسابك غير مرتبط بملف طالب. تواصل مع إدارة السنتر لربطه.' : 'تعذر تحميل المتابعة. تحقق من التاريخ والشهر وربط الحساب ثم أعد المحاولة.';
@@ -3344,7 +3350,7 @@ function learningTodayHtml(state) {
   }).join('') + '</div>' : '<p class="monthly-empty">لا توجد حصص بموعد مسجل أو سجلات حضور لهذا اليوم. هذا لا يعني غياب الطالب.</p>';
   html += '</section><section class="panel"><h2 class="panel-title">آخر الدرجات المسجلة</h2><p class="monthly-note">أحدث 5 تقييمات حتى تاريخ المتابعة المختار، وليست جدول امتحانات قادمة.</p>';
   html += state.recentGrades.length ? '<div class="learning-grade-list">' + state.recentGrades.map(function(grade) { return '<article class="learning-grade-card"><div><strong>' + safeText(grade.title) + '</strong><p>' + safeText(grade.subject + ' / ' + grade.group) + '</p><time>' + safeText(grade.assessedOn) + '</time></div><div class="learning-grade-score"><strong dir="ltr">' + grade.score + ' / ' + grade.maxScore + '</strong><span>' + grade.percentage + '%</span></div></article>'; }).join('') + '</div>' : '<p class="monthly-empty">لا توجد درجات مسجلة حتى هذا التاريخ.</p>';
-  return html + '</section>';
+  return html + '</section>' + learningExamsHtml(state);
 }
 function renderStudentPortalView(c) {
   var state = STUDENT_REPORT;
@@ -3353,6 +3359,83 @@ function renderStudentPortalView(c) {
   if (state.loading) { c.innerHTML += '<div class="panel monthly-empty" role="status">جارٍ تحميل بياناتك...</div>'; return; }
   if (state.error) { c.innerHTML += '<div class="panel" role="alert">' + safeText(state.error) + '</div>'; return; }
   if (state.report) c.innerHTML += learningTodayHtml(state) + monthlyLearningHtml(state.report);
+}
+
+function newExamPage() { return { month: localReportDate().slice(0,7), loaded: false, loading: false, busy: false, error: '', message: '', exams: [], groups: [], capabilities: {}, selected: '', detail: null, sequence: 0, detailSequence: 0, studentId: '', score: '', draft: { groupId: '', title: '', date: localReportDate(), startsAt: '10:00', endsAt: '11:00', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', maxScore: '100' } }; }
+var EXAM_PAGE = newExamPage();
+function examCurrent(state, userId) { return EXAM_PAGE === state && STATE.currentUser && STATE.currentUser.id === userId; }
+function refreshExamPage() { if (STATE.activeView === 'exams') renderActiveView(); }
+function examError(error) { return { FORBIDDEN: 'حسابك لا يملك صلاحية هذا الإجراء.', GROUP_NOT_FOUND: 'المجموعة خارج نطاق صلاحياتك.', EXAM_NOT_FOUND: 'الامتحان غير متاح ضمن صلاحياتك.', INVALID_INPUT: 'راجع التاريخ والتوقيت والمنطقة الزمنية والدرجة العظمى.', STUDENT_NOT_ENROLLED: 'الطالب غير مقيد بهذه المجموعة.', SCORE_EXCEEDS_MAXIMUM: 'الدرجة أكبر من الدرجة العظمى.', RESULT_ALREADY_RECORDED: 'هذه النتيجة مسجلة بالفعل. استخدم سجل الدرجة لتصحيح موثق.', EXAM_RESULTS_PUBLISHED: 'نشرت النتائج بالفعل. لا تضاف نتائج جديدة بعد النشر. التصحيح من سجل الدرجة بصلاحية النشر.', NO_RESULTS: 'أدخل نتيجة واحدة على الأقل قبل النشر.' }[error.message] || 'تعذر إتمام الطلب. أعد المحاولة.'; }
+function loadExams() {
+  var state = EXAM_PAGE, sequence = ++state.sequence, userId = STATE.currentUser && STATE.currentUser.id;
+  state.loading = true; state.error = ''; refreshExamPage();
+  return api('/api/center/exams?month=' + encodeURIComponent(state.month)).then(function(data) { if (!examCurrent(state,userId) || sequence !== state.sequence) return; state.exams=data.exams; state.groups=data.groups; state.capabilities=data.capabilities; state.loaded=true; }).catch(function(error) { if (examCurrent(state,userId) && sequence === state.sequence) state.error=examError(error); }).finally(function() { if (examCurrent(state,userId) && sequence === state.sequence) { state.loading=false; refreshExamPage(); } });
+}
+function loadExamResults(id) {
+  var state=EXAM_PAGE, sequence=++state.detailSequence, userId=STATE.currentUser&&STATE.currentUser.id; state.selected=id; state.detail=null; state.correction=null; state.correctionSequence=(state.correctionSequence||0)+1; state.studentId=''; state.score=''; state.error=''; refreshExamPage();
+  return api('/api/center/exams/'+encodeURIComponent(id)+'/results').then(function(data) { if (examCurrent(state,userId)&&sequence===state.detailSequence) state.detail=data; }).catch(function(error) { if (examCurrent(state,userId)&&sequence===state.detailSequence) state.error=examError(error); }).finally(function() { if(examCurrent(state,userId)&&sequence===state.detailSequence)refreshExamPage(); });
+}
+function saveExam(event) {
+  event.preventDefault(); var state=EXAM_PAGE, userId=STATE.currentUser&&STATE.currentUser.id; if(state.busy)return false;
+  state.busy=true; state.error=''; var payload=Object.assign({},state.draft,{groupId:Number(state.draft.groupId),maxScore:Number(state.draft.maxScore)}); refreshExamPage();
+  api('/api/center/exams',{method:'POST',body:JSON.stringify(payload)}).then(function(data) { if(!examCurrent(state,userId))return; state.month=data.exam.date.slice(0,7); state.message='تم إنشاء الامتحان. موعده ظاهر الآن للطلاب المقيدين وأولياء أمورهم، والنتائج لا تظهر إلا بعد النشر.';state.draft.title='';return loadExams(); }).catch(function(error){if(examCurrent(state,userId))state.error=examError(error);}).finally(function(){state.busy=false;if(examCurrent(state,userId))refreshExamPage();});return false;
+}
+function saveExamResult(event) {
+  event.preventDefault();var state=EXAM_PAGE,userId=STATE.currentUser&&STATE.currentUser.id;if(state.busy||!state.detail)return false;var id=state.detail.exam.id;
+  state.busy=true;state.error='';var payload={studentId:Number(state.studentId),score:Number(state.score)};refreshExamPage();
+  api('/api/center/exams/'+encodeURIComponent(id)+'/results',{method:'POST',body:JSON.stringify(payload)}).then(function(){if(!examCurrent(state,userId))return;state.message='حفظت النتيجة كمسودة. لم تظهر للطالب أو ولي الأمر بعد.';return loadExamResults(id);}).catch(function(error){if(examCurrent(state,userId))state.error=examError(error);}).finally(function(){state.busy=false;if(examCurrent(state,userId))refreshExamPage();});return false;
+}
+function publishExamResults(id) {
+  var state=EXAM_PAGE,userId=STATE.currentUser&&STATE.currentUser.id;if(state.busy||!confirm('سيتم إظهار النتائج المسجلة للطلاب أصحاب النتائج وأولياء أمورهم المرتبطين. لا يمكن إضافة نتائج أو سحب النشر في هذه الدفعة بعد النشر. هل تنشر الآن؟'))return;
+  state.busy=true;state.error='';refreshExamPage();
+  api('/api/center/exams/'+encodeURIComponent(id)+'/publish',{method:'POST',body:JSON.stringify({})}).then(function(){if(!examCurrent(state,userId))return;state.message='نشرت النتائج. تظهر كل نتيجة لصاحبها وولي أمره فقط.';return loadExams().then(function(){if(state.selected===id&&state.capabilities.recordResults)return loadExamResults(id);});}).catch(function(error){if(examCurrent(state,userId))state.error=examError(error);}).finally(function(){state.busy=false;if(examCurrent(state,userId))refreshExamPage();});
+}
+function renderExamsView(c) {
+  var state=EXAM_PAGE;if(!state.loaded&&!state.loading&&!state.error){loadExams();return;}
+  var draft=state.draft;
+  function field(key,label,type,extra) { return '<div class="field"><label for="exam-'+key+'">'+label+'</label><input id="exam-'+key+'" type="'+type+'" value="'+safeText(draft[key])+'" oninput="EXAM_PAGE.draft.'+key+'=this.value" required '+(extra||'')+'></div>'; }
+  c.innerHTML='<div class="monthly-hero"><span class="school-dashboard-eyebrow">✦ تقييم واضح وعادل</span><h1>الامتحانات والنتائج</h1><p>موعد محدد لكل مجموعة، درجات محفوظة كمسودة، ثم نشر صريح للطالب وولي الأمر.</p></div>'+(state.error?'<p class="panel" role="alert">'+safeText(state.error)+'</p>':'')+'<p role="status" class="monthly-note">'+safeText(state.message)+'</p>';
+  c.innerHTML+='<section class="panel"><h2 class="panel-title">جدولة امتحان جديد</h2><p class="monthly-note">الموعد يظهر للمقيدين بالمجموعة فور الحفظ. الإضافة فقط في هذه الدفعة، ولا يوجد تعديل للموعد أو حذف بعد الحفظ. التوقيت في المنطقة الزمنية التي تختارها أدناه، ولا يسمح بامتحان يتجاوز منتصف الليل.</p><form onsubmit="return saveExam(event)"><fieldset class="monthly-fieldset"'+(state.busy?' disabled':'')+'><div class="monthly-form-grid"><div class="field"><label for="exam-group">المجموعة</label><select id="exam-group" required onchange="EXAM_PAGE.draft.groupId=this.value"><option value="">اختر المجموعة</option>'+state.groups.map(function(group){return '<option value="'+group.groupId+'"'+(String(group.groupId)===draft.groupId?' selected':'')+'>'+safeText(group.subject+' / '+group.group)+' #'+group.groupId+'</option>';}).join('')+'</select></div>'+field('title','اسم الامتحان','text','maxlength="160"')+field('date','التاريخ','date','min="1900-01-01" max="2199-12-31"')+field('startsAt','البداية','time')+field('endsAt','النهاية','time')+field('timezone','المنطقة الزمنية (مثال Africa/Cairo)','text','dir="ltr"')+field('maxScore','الدرجة العظمى','number','min="0.000001" max="1000000" step="any"')+'</div><button class="btn" type="submit"'+(!state.groups.length?' disabled':'')+'>حفظ موعد الامتحان</button></fieldset></form></section>';
+  c.innerHTML+='<section class="panel"><div class="monthly-controls"><h2 class="panel-title">امتحانات الشهر</h2><div class="field"><label for="exam-month">الشهر</label><input id="exam-month" type="month" value="'+safeText(state.month)+'" onchange="EXAM_PAGE.month=this.value;EXAM_PAGE.selected=\'\';EXAM_PAGE.detail=null;EXAM_PAGE.correction=null;EXAM_PAGE.correctionSequence=(EXAM_PAGE.correctionSequence||0)+1;EXAM_PAGE.detailSequence++;loadExams()"></div><button class="btn btn-secondary" onclick="loadExams()">تحديث</button></div><p class="monthly-note">حتى 200 امتحان في الشهر ضمن نطاق صلاحياتك. إدخال الدرجات ونشرها لهما صلاحيتان مستقلتان.</p>'+(state.loading?'<p role="status">جارٍ التحميل...</p>':state.exams.length?'<div class="learning-day-grid">'+state.exams.map(function(exam){return '<article class="learning-day-card"><p class="learning-subject">'+safeText(exam.subject)+'</p><h3>'+safeText(exam.title)+'</h3><p>'+safeText(exam.group)+' #'+exam.groupId+'</p><p><time>'+safeText(exam.date)+'</time> · <span dir="ltr">'+safeText(exam.startsAt+' - '+exam.endsAt)+'</span><br><span dir="ltr">'+safeText(exam.timezone)+'</span></p><p>الدرجة العظمى: '+exam.maxScore+' · '+(exam.publishedAt?'النتائج منشورة':'النتائج غير منشورة')+'</p><div class="exam-actions">'+(state.capabilities.recordResults?'<button class="btn btn-sm btn-secondary" onclick="loadExamResults(\''+safeText(exam.id)+'\')">عرض وإدخال النتائج</button>':'')+(state.capabilities.publishResults&&!exam.publishedAt?'<button class="btn btn-sm" onclick="publishExamResults(\''+safeText(exam.id)+'\')"'+(state.busy?' disabled':'')+'>نشر النتائج</button>':'')+'</div></article>';}).join('')+'</div>':'<p class="monthly-empty">لا توجد امتحانات في الشهر المختار.</p>')+'</section>';
+  if(state.selected&&!state.detail&&!state.error)c.innerHTML+='<p class="panel" role="status">جارٍ تحميل نتائج الامتحان...</p>';
+  if(!state.detail)return;
+  var exam=state.detail.exam,students=state.detail.students,available=students.filter(function(student){return !student.result;});
+  c.innerHTML+='<section class="panel"><h2 class="panel-title">نتائج '+safeText(exam.title)+'</h2><p class="monthly-note">'+(exam.publishedAt?'النتائج منشورة، والإضافة مغلقة في هذه الدفعة.':'الدرجات مسودة حتى تنشرها. عدم وجود نتيجة ليس صفرا، ولا يستنتج منه غياب. الإضافة فقط الآن، والتصحيح من سجل درجة الطالب مع حفظ الدرجة السابقة وسبب التصحيح.')+'</p>'+(!exam.publishedAt?'<form onsubmit="return saveExamResult(event)"><fieldset class="monthly-fieldset"'+(state.busy?' disabled':'')+'><div class="monthly-controls"><div class="field"><label for="exam-result-student">الطالب المقيد، بدون نتيجة مسجلة</label><select id="exam-result-student" required onchange="EXAM_PAGE.studentId=this.value"><option value="">اختر الطالب</option>'+available.map(function(student){return '<option value="'+student.id+'"'+(String(student.id)===state.studentId?' selected':'')+'>'+safeText(student.name)+' #'+student.id+'</option>';}).join('')+'</select></div><div class="field"><label for="exam-result-score">الدرجة من '+exam.maxScore+'</label><input id="exam-result-score" type="number" min="0" max="'+exam.maxScore+'" step="any" required value="'+safeText(state.score)+'" oninput="EXAM_PAGE.score=this.value"></div><button class="btn" type="submit"'+(!available.length?' disabled':'')+'>حفظ كمسودة</button></div></fieldset></form>':'')+monthlyTable(['الطالب','الدرجة','الحالة','المراجعة'],students.map(function(student){return monthlyCells([student.name+' #'+student.id,student.result?student.result.score+' / '+student.result.maxScore:'لم تسجل نتيجة',student.result?(exam.publishedAt?'منشورة':'مسودة'):'غير مسجلة']).replace('</tr>','<td>'+gradeHistoryButton(student)+'</td></tr>');}),'لا يوجد طلاب أو نتائج ضمن نطاقك.')+'</section>';
+  c.innerHTML+=renderGradeCorrectionPanel(state);
+}
+function correctionError(error) {
+  return { RESULT_NOT_FOUND:'النتيجة غير متاحة ضمن نطاقك.', GRADE_CHANGED:'تغيرت الدرجة منذ فتحها. أعد تحميل سجل الدرجة قبل التصحيح.', NO_GRADE_CHANGE:'أدخل درجة مختلفة عن الدرجة الحالية.', PUBLISHED_CORRECTION_FORBIDDEN:'تصحيح نتيجة منشورة يحتاج صلاحية إدخال الدرجات وصلاحية نشر النتائج معا.', PUBLISHED_CORRECTION_CONFIRMATION_REQUIRED:'أكد نشر التصحيح قبل الحفظ.', INVALID_GRADE_SNAPSHOT:'بيانات الدرجة تحتاج مراجعة من الإدارة قبل تعديلها.' }[error.message] || examError(error);
+}
+function loadGradeHistory(studentId) {
+  var state=EXAM_PAGE,userId=STATE.currentUser&&STATE.currentUser.id;if(!state.detail)return;var id=state.detail.exam.id,sequence=state.correctionSequence=(state.correctionSequence||0)+1;
+  state.correction={studentId:studentId,loading:true,data:null,score:'',reason:''};state.error='';refreshExamPage();
+  return api('/api/center/exams/'+encodeURIComponent(id)+'/results/'+studentId+'/history').then(function(data){if(!examCurrent(state,userId)||sequence!==state.correctionSequence||state.selected!==id)return;state.correction.data=data;state.correction.score=String(data.grade.score);}).catch(function(error){if(examCurrent(state,userId)&&sequence===state.correctionSequence)state.error=correctionError(error);}).finally(function(){if(examCurrent(state,userId)&&sequence===state.correctionSequence){state.correction.loading=false;refreshExamPage();}});
+}
+function saveGradeCorrection(event) {
+  event.preventDefault();var state=EXAM_PAGE,userId=STATE.currentUser&&STATE.currentUser.id,correction=state.correction;if(state.busy||!correction||!correction.data)return false;
+  var data=correction.data,id=data.exam.id,studentId=data.student.id,published=Boolean(data.exam.publishedAt);
+  if(published&&!confirm('هذا تصحيح لنتيجة منشورة. ستظهر الدرجة الجديدة فورا للطالب وولي أمره، وستبقى الدرجة السابقة وسبب التصحيح في سجل المراجعة. هل تحفظ وتنشر التصحيح؟'))return false;
+  var payload={score:Number(correction.score),expectedRevision:data.grade.revision,reason:correction.reason,confirmPublished:published};state.busy=true;state.error='';refreshExamPage();
+  api('/api/center/exams/'+encodeURIComponent(id)+'/results/'+studentId+'/corrections',{method:'POST',body:JSON.stringify(payload)}).then(function(){if(!examCurrent(state,userId)||state.selected!==id)return;state.message=published?'حفظ التصحيح ونشره مع الاحتفاظ بسجل الدرجة السابقة.':'حفظ تصحيح المسودة وسجل المراجعة. النتيجة لم تنشر بعد.';return loadExamResults(id).then(function(){if(examCurrent(state,userId)&&state.selected===id)return loadGradeHistory(studentId);});}).catch(function(error){if(examCurrent(state,userId))state.error=correctionError(error);}).finally(function(){state.busy=false;if(examCurrent(state,userId))refreshExamPage();});return false;
+}
+function gradeHistoryButton(student) { return student.result?'<button class="btn btn-sm btn-secondary" onclick="loadGradeHistory('+student.id+')">سجل الدرجة / تصحيح</button>':'—'; }
+function renderGradeCorrectionPanel(state) {
+  var correction=state.correction;if(!correction)return '';if(correction.loading)return '<section class="panel" role="status">جارٍ تحميل سجل الدرجة...</section>';if(!correction.data)return '';
+  var data=correction.data,html='<section class="panel"><h2 class="panel-title">سجل درجة '+safeText(data.student.name)+'</h2><p>الدرجة الحالية: <strong dir="ltr">'+data.grade.score+' / '+data.grade.maxScore+'</strong> · رقم المراجعة: '+data.grade.revision+'</p><p class="monthly-note">التصحيح لا يحذف الدرجة السابقة. السبب واسم المصحح وتاريخ التصحيح محفوظون في سجل الموظفين. لا تقبل نسخة قديمة من الدرجة.</p>';
+  if(data.canCorrect)html+='<form onsubmit="return saveGradeCorrection(event)"><fieldset class="monthly-fieldset"'+(state.busy?' disabled':'')+'><div class="monthly-form-grid"><div class="field"><label for="exam-correction-score">الدرجة الجديدة من '+data.grade.maxScore+'</label><input id="exam-correction-score" type="number" min="0" max="'+data.grade.maxScore+'" step="any" required value="'+safeText(correction.score)+'" oninput="EXAM_PAGE.correction.score=this.value"></div><div class="field"><label for="exam-correction-reason">سبب التصحيح (5 إلى 500 حرف)</label><input id="exam-correction-reason" type="text" minlength="5" maxlength="500" required value="'+safeText(correction.reason)+'" oninput="EXAM_PAGE.correction.reason=this.value"></div></div><button class="btn" type="submit">'+(data.exam.publishedAt?'حفظ ونشر التصحيح':'حفظ تصحيح المسودة')+'</button></fieldset></form>';
+  else html+='<p class="monthly-note">يمكنك قراءة السجل، لكن تصحيح نتيجة منشورة يحتاج صلاحية إدخال الدرجات وصلاحية النشر معا.</p>';
+  html+='<h3>أحدث 50 تصحيحا</h3>';
+  html+=data.history.length?'<div class="learning-grade-list">'+data.history.map(function(row){return '<article class="learning-day-card"><strong>مراجعة '+row.revision+' · <span dir="ltr">'+row.previousScore+' → '+row.score+' / '+row.maxScore+'</span></strong><p>'+safeText(row.reason)+'</p><p class="monthly-note">'+safeText(row.correctedBy)+' · <time dir="ltr">'+safeText(row.createdAt)+'</time></p></article>';}).join('')+'</div>':'<p class="monthly-empty">لم تسجل تصحيحات لهذه الدرجة.</p>';
+  return html+'</section>';
+}
+
+function learningExamsHtml(state) {
+  var schedule=state.examSchedule||[],results=state.examResults||[];
+  var html='<section class="panel"><h2 class="panel-title">مواعيد الامتحانات</h2><p class="monthly-note">أقرب 20 امتحانا ابتداء من تاريخ المتابعة المختار. التوقيت والمنطقة الزمنية كما سجلهما السنتر.</p>';
+  html+=schedule.length?'<div class="learning-day-grid">'+schedule.map(function(exam){return '<article class="learning-day-card"><p class="learning-subject">'+safeText(exam.subject)+'</p><h3>'+safeText(exam.title)+'</h3><p>'+safeText(exam.group)+' #'+exam.groupId+'</p><p>'+safeText(exam.date)+'<br><span dir="ltr">'+safeText(exam.startsAt+' - '+exam.endsAt)+'</span><br><span dir="ltr">'+safeText(exam.timezone)+'</span></p><p>الدرجة العظمى: '+exam.maxScore+'</p></article>';}).join('')+'</div>':'<p class="monthly-empty">لا توجد امتحانات بموعد مسجل بدءا من هذا التاريخ.</p>';
+  html+='</section><section class="panel"><h2 class="panel-title">نتائج الامتحانات المنشورة</h2><p class="monthly-note">آخر 20 نتيجة منشورة لصاحب الحساب أو الابن المختار فقط. عدم عرض نتيجة لا يعني صفرا.</p>';
+  html+=results.length?'<div class="learning-grade-list">'+results.map(function(result){return '<article class="learning-grade-card"><div><strong>'+safeText(result.title)+'</strong><p>'+safeText(result.subject+' / '+result.group)+'</p><time>'+safeText(result.assessedOn)+'</time></div><div class="learning-grade-score"><strong dir="ltr">'+result.score+' / '+result.maxScore+'</strong><span>'+(result.revision?'مصححة · '+result.revision:'منشورة')+'</span></div></article>';}).join('')+'</div>':'<p class="monthly-empty">لا توجد نتائج امتحانات منشورة بعد.</p>';
+  return html+'</section>';
 }
 
 /* Monthly reporting uses only server-scoped child records, never the generic student cache. */

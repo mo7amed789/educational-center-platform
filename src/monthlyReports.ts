@@ -96,7 +96,7 @@ export function registerMonthlyReportRoutes(app: FastifyInstance) {
     if (!query.success) return reply.code(422).send({ error: 'INVALID_INPUT' });
     if (user.role === 'BRANCH_ADMIN' && !user.branchId) return reply.code(403).send({ error: 'FORBIDDEN' });
     const items = await prisma.gradeRecord.findMany({
-      where: { student: { centerId: user.centerId }, group: { centerId: user.centerId, ...(user.role === 'BRANCH_ADMIN' ? { branchId: user.branchId } : {}) }, assessedOn: monthRange(query.data.month), ...(query.data.studentId ? { studentId: query.data.studentId } : {}) },
+      where: { examId: null, student: { centerId: user.centerId }, group: { centerId: user.centerId, ...(user.role === 'BRANCH_ADMIN' ? { branchId: user.branchId } : {}) }, assessedOn: monthRange(query.data.month), ...(query.data.studentId ? { studentId: query.data.studentId } : {}) },
       include: { student: { select: { id: true, name: true } }, group: { include: learningGroupInclude } },
       orderBy: [{ assessedOn: 'desc' }, { createdAt: 'desc' }], take: 500,
     });
@@ -122,4 +122,4 @@ export function registerMonthlyReportRoutes(app: FastifyInstance) {
     if (!result) return reply.code(422).send({ error: 'INVALID_ENROLLMENT' });
     return reply.code(201).send({ grade: { id: result.id, studentId: result.studentId, groupId: result.groupId, title: result.title, assessedOn: result.assessedOn, score: result.score, maxScore: result.maxScore } });
   });
-                                        }
+}
