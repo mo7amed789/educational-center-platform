@@ -24,8 +24,8 @@ describe('finance permission boundaries on non-finance workflows', () => {
   afterAll(async () => { await app.close(); await prisma.$disconnect(); });
   let counter = 0;
   const request = (who: string, url: string, payload?: object) => app.inject({ method: payload ? 'POST' : 'GET', url, remoteAddress: `192.0.2.${++counter}`, headers: { cookie: cookies[who] }, ...(payload ? { payload } : {}) });
-  it.each(['reception', 'teacher'])('records attendance for %s without disclosing payment status', async (who) => {
-    const result = await request(who, '/api/center/attendance/scan', { code: String(id) }); expect(result.statusCode).toBe(200);
+  it.each(['reception', 'teacher'])('keeps %s attendance actions within role and finance boundaries', async (who) => {
+    const result = await request(who, '/api/center/attendance/scan', { code: String(id) }); if (who === 'teacher') { expect(result.statusCode).toBe(403); expect(result.json()).not.toHaveProperty('subscription'); return; } expect(result.statusCode).toBe(200);
     expect(result.json().financialVisible).toBe(false); expect(result.json()).not.toHaveProperty('isPaid'); expect(result.json()).not.toHaveProperty('subscription');
     expect(result.json().attendance.status).toBe('PRESENT');
   });
