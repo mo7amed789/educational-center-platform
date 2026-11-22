@@ -27,7 +27,7 @@ Do not run `migrate reset`, do not add `--accept-data-loss`, and stop if Prisma 
 
 The existing default teacher role may schedule its own assigned groups, but is not silently granted grade-entry or publication permission. Branch managers need a valid same-center primary branch and cannot access another branch's exams. Student/guardian custom overrides do not turn the learner into exam staff.
 
-Schedules and result records are add-only in this first slice. There is no exam edit/delete, result overwrite, unpublish or post-publication entry. Publication requires at least one result, not a complete roster. Only students with recorded results receive a result; other students are not assigned zero. Publication does not automatically wait until the scheduled time. Correction history is the next review slice.
+Schedules and result records are add-only in this first slice. There is no exam edit/delete, result overwrite, unpublish or post-publication entry. Publication requires at least one result, not a complete roster. Only students with recorded results receive a result; other students are not assigned zero. Publication does not automatically wait until the scheduled time. The separate correction-history slice is described in [grade-corrections.md](grade-corrections.md).
 
 ## Learner workflow
 
@@ -43,7 +43,7 @@ The shared parent/student report adds the next 20 exams from the selected follow
 
 Date/time/timezone validation rejects impossible dates, unknown zones and end times no later than the start. Overnight exams are not supported in this slice. Times remain explicit local wall-clock values with their zone; this does not create external calendar events.
 
-No email, WhatsApp or external account messages are sent. In-platform notifications and correction history are separate follow-up work.
+No email, WhatsApp or external account messages are sent. In-platform notifications remain separate follow-up work. Audited corrections are described in [grade-corrections.md](grade-corrections.md).
 
 ## Validation
 
