@@ -871,24 +871,33 @@ export function buildApp() {
   app.patch('/api/center/sessions/:id', async (request, reply) => {
     const user = await requireUser(request, reply); if (!user) return;
     if (!user.centerId || !(await authorize(user.id, 'groups.manage_schedule', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
-    const params = z.object({ id: z.string() }).parse(request.params);
+    const params = z.object({ id: z.string().min(1) }).safeParse(request.params);
     const input = z.object({
       status: z.enum(['scheduled', 'active', 'completed', 'cancelled']),
       topic: z.string().trim().max(200).optional(),
-    }).parse(request.body);
+    }).safeParse(request.body);
+    if (!params.success || !input.success) return reply.code(422).send({ error: 'INVALID_INPUT' });
 
-    const session = await prisma.lessonSession.update({
-      where: { id: params.id },
-      data: {
-        status: input.status,
-        ...(input.topic ? { topic: input.topic } : {}),
-      },
-      include: { group: true },
+    // Keep the tenant predicate on the write, not only on a preceding lookup.
+    // The mutation and audit either both commit or both roll back.
+    const session = await prisma.$transaction(async (tx) => {
+      const updated = await tx.lessonSession.updateMany({
+        where: { id: params.data.id, group: { centerId: user.centerId! } },
+        data: {
+          status: input.data.status,
+          ...(input.data.topic ? { topic: input.data.topic } : {}),
+        },
+      });
+      if (updated.count === 0) return null;
+      const result = await tx.lessonSession.findUniqueOrThrow({
+        where: { id: params.data.id }, include: { group: true },
+      });
+      await tx.auditLog.create({
+        data: { centerId: user.centerId, userId: user.id, action: 'sessions.update', entity: 'LessonSession', entityId: result.id, metadata: JSON.stringify({ status: result.status }) },
+      });
+      return result;
     });
-
-    await prisma.auditLog.create({
-      data: { centerId: user.centerId, userId: user.id, action: 'sessions.update', entity: 'LessonSession', entityId: session.id, metadata: JSON.stringify({ status: session.status }) },
-    });
+    if (!session) return reply.code(404).send({ error: 'SESSION_NOT_FOUND' });
     return { session };
   });
 
