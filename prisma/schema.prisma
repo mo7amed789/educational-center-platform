@@ -78,6 +78,7 @@ model User {
   recordedGrades GradeRecord[]
   createdExams Exam[]
   gradeCorrections GradeCorrection[]
+  learnerNotifications LearnerNotification[]
   @@index([centerId, branchId, role])
 }
 
@@ -279,6 +280,7 @@ model GradeRecord {
   id           String   @id @default(cuid())
   revision     Int      @default(0)
   corrections  GradeCorrection[]
+  notifications LearnerNotification[]
   studentId    Int
   groupId      Int
   title        String
@@ -411,4 +413,19 @@ model GradeCorrection {
   correctedBy User @relation(fields: [correctedById], references: [id], onDelete: Restrict)
   @@unique([gradeRecordId, revision])
   @@index([gradeRecordId, createdAt])
+}
+
+model LearnerNotification {
+  id String @id @default(cuid())
+  recipientUserId String
+  gradeRecordId String
+  eventKey String
+  kind String
+  revision Int
+  createdAt DateTime @default(now())
+  readAt DateTime?
+  recipient User @relation(fields: [recipientUserId], references: [id], onDelete: Cascade)
+  gradeRecord GradeRecord @relation(fields: [gradeRecordId], references: [id], onDelete: Cascade)
+  @@unique([recipientUserId,eventKey])
+  @@index([recipientUserId,createdAt])
 }

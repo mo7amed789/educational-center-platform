@@ -1,3 +1,4 @@
+import { notifyExamResults } from './notifications.js';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { Prisma, User } from '@prisma/client';
 import { z } from 'zod';
@@ -99,6 +100,7 @@ export function registerExamRoutes(app: FastifyInstance) {
       if (exam.publishedAt) return { exam: examView(exam, user.centerId!), repeated: true };
       if (!(await tx.gradeRecord.count({ where: { examId: exam.id, groupId: exam.groupId, student: { centerId: user.centerId! } } }))) return { error: 'NO_RESULTS', status: 422 };
       const published = await tx.exam.update({ where: { id: exam.id }, data: { publishedAt: new Date() }, include: examInclude });
+      await notifyExamResults(tx, user.centerId!, exam.id, exam.groupId, 'RESULT_PUBLISHED');
       await tx.auditLog.create({ data: { centerId: user.centerId, userId: user.id, action: 'exams.publish', entity: 'Exam', entityId: exam.id } });
       return { exam: examView(published, user.centerId!), repeated: false };
     });
@@ -146,6 +148,7 @@ export function registerExamRoutes(app: FastifyInstance) {
         if (changed.count !== 1) return { error: 'GRADE_CHANGED', status: 409 };
         const correction = await tx.gradeCorrection.create({ data: { gradeRecordId: grade.id, revision: grade.revision + 1, previousScore: grade.score, score: input.data.score, maxScore: grade.maxScore, reason: input.data.reason, correctedById: user.id }, select: { id: true } });
         await tx.auditLog.create({ data: { centerId: user.centerId, userId: user.id, action: 'exams.correct_result', entity: 'GradeRecord', entityId: grade.id, metadata: JSON.stringify({ examId: exam.id, correctionId: correction.id, revision: grade.revision + 1, previousScore: grade.score, score: input.data.score, published: Boolean(exam.publishedAt) }) } });
+        if (exam.publishedAt) await notifyExamResults(tx, user.centerId!, exam.id, exam.groupId, 'RESULT_CORRECTED', grade.id);
         return { grade: { id: grade.id, score: input.data.score, maxScore: grade.maxScore, revision: grade.revision + 1 }, published: Boolean(exam.publishedAt) };
       });
       if ('error' in result) return reply.code(result.status!).send({ error: result.error });
