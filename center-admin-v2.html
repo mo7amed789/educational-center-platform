@@ -1764,6 +1764,30 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 
 /* Monthly reports: scoped real data, with readable narrow-screen tables. */
+.learning-day-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr)); gap:14px; }
+.learning-day-card { border:1px solid var(--border); border-radius:18px; padding:18px; background:var(--bg-surface-elevated); }
+.learning-day-card h3 { margin:6px 0; font-size:16px; }
+.learning-day-card ul { padding-inline-start:20px; color:var(--tx-muted); font-size:13px; line-height:1.9; }
+.learning-subject { color:var(--pr); font-weight:700; margin:0; }
+.learning-recorded-status { display:inline-block; background:var(--bg-surface); border:1px solid var(--border); border-radius:12px; padding:8px 12px; font-weight:700; margin:10px 0; }
+.learning-recorded-status[data-recorded-status=ABSENT] { color:var(--er); }
+.learning-grade-list { display:grid; gap:12px; }
+.learning-grade-card { display:flex; align-items:center; justify-content:space-between; gap:16px; border-bottom:1px solid var(--border); padding:12px 0; overflow-wrap:anywhere; }
+.learning-grade-card p,.learning-grade-card time { color:var(--tx-muted); font-size:13px; margin:7px 0; }
+.learning-grade-score { display:flex; flex-direction:column; gap:7px; text-align:center; font-family:var(--font-num); flex-shrink:0; }
+.learning-grade-score strong { font-size:22px; }
+.learning-identity code { display:inline-block; font-size:15px; overflow-wrap:anywhere; }
+
+.learning-history summary { cursor:pointer; font-weight:700; line-height:1.8; }
+.learning-history[open] summary { margin-bottom:18px; }
+@media(max-width:600px) {
+ .learning-history .data-table { display:block; min-width:0; width:100%; }
+ .learning-history thead { display:none; }
+ .learning-history tbody,.learning-history tr { display:block; }
+ .learning-history tr { border-bottom:1px solid var(--border); padding:12px 0; }
+ .learning-history td { display:flex; justify-content:space-between; gap:12px; white-space:normal; padding:7px; border:0; }
+ .learning-history td::before { content:attr(data-label); color:var(--tx-muted); flex-shrink:0; }
+}
 .monthly-hero { padding: 28px; border-radius: 24px; background: var(--bg-surface); border: 1px solid var(--border); margin-bottom: 22px; }
 .monthly-hero .school-dashboard-eyebrow { color: var(--pr); }
 .monthly-hero h1 { margin: 10px 0; font-size: clamp(24px, 3vw, 34px); }
@@ -2167,6 +2191,7 @@ function initSession(user) {
   document.getElementById('roleGate').hidden = true;
   var role = user.role;
   STATE.currentRole = role;
+  STUDENT_REPORT = newStudentReport();
   
   document.getElementById('sidebarUserName').textContent = user.name;
   document.getElementById('sidebarAvatar').textContent = user.name ? user.name[0] : 'U';
@@ -2304,6 +2329,7 @@ function switchView(viewId) {
    DATA LOADER
    ========================================================================== */
 function loadAllCenterData() {
+  if (STATE.currentRole === 'STUDENT') return STUDENT_REPORT.loading ? Promise.resolve() : loadStudentLearning();
   if (STATE.currentRole === 'GUARDIAN') {
     return loadParentChildren();
   }
@@ -3272,56 +3298,53 @@ function renderTeacherPortalView(c) {
   `;
 }
 
-/* 12. STUDENT PORTAL VIEW (APPLE WALLET PASS) */
+function newStudentReport() { return { month: localReportDate().slice(0, 7), date: localReportDate(), loading: false, loaded: false, error: '', report: null, today: [], recentGrades: [], student: null, code: '', sequence: 0 }; }
+var STUDENT_REPORT = newStudentReport();
+function learningStateCurrent(state, sequence, userId, parent) { return (parent ? PARENT_REPORT : STUDENT_REPORT) === state && sequence === state.sequence && STATE.currentUser && STATE.currentUser.id === userId; }
+function loadLearningRole(parent) {
+  var state = parent ? PARENT_REPORT : STUDENT_REPORT, sequence = ++state.sequence, userId = STATE.currentUser && STATE.currentUser.id;
+  state.loading = true; state.error = ''; state.report = null;
+  var view = parent ? 'portal_parent' : 'portal_student'; refreshMonthlyView(view);
+  var url = '/api/portal/' + (parent ? 'parent' : 'student') + '/learning-report?month=' + encodeURIComponent(state.month) + '&date=' + encodeURIComponent(state.date);
+  if (parent) url += '&studentId=' + encodeURIComponent(state.studentId);
+  return api(url).then(function(data) {
+    if (!learningStateCurrent(state, sequence, userId, parent)) return;
+    state.report = data.report; state.today = data.today; state.recentGrades = data.recentGrades; state.student = data.student; state.code = data.code; state.loaded = true;
+  }).catch(function(error) {
+    if (!learningStateCurrent(state, sequence, userId, parent)) return;
+    state.error = error.message === 'STUDENT_PROFILE_NOT_LINKED' ? 'حسابك غير مرتبط بملف طالب. تواصل مع إدارة السنتر لربطه.' : 'تعذر تحميل المتابعة. تحقق من التاريخ والشهر وربط الحساب ثم أعد المحاولة.';
+  }).finally(function() {
+    if (!learningStateCurrent(state, sequence, userId, parent)) return;
+    state.loading = false; refreshMonthlyView(view);
+  });
+}
+function loadStudentLearning() { return loadLearningRole(false); }
+function studentLearningFilterChanged() {
+  STUDENT_REPORT.month = document.getElementById('studentReportMonth').value;
+  STUDENT_REPORT.date = document.getElementById('studentReportDate').value;
+  return loadStudentLearning();
+}
+function learningTodayHtml(state) {
+  var statuses = { PRESENT: 'حاضر', ABSENT: 'غائب مسجل', LATE: 'متأخر', EXCUSED: 'بعذر', UNKNOWN: 'حالة تحتاج مراجعة' };
+  var lessonStatuses = { scheduled: 'مجدولة', active: 'جارية', completed: 'انتهت', cancelled: 'ملغاة' };
+  var title = state.date === localReportDate() ? 'حصص اليوم' : 'متابعة يوم ' + state.date;
+  var html = '<section class="panel learning-today"><h2 class="panel-title">' + safeText(title) + '</h2><p class="monthly-note">حالة كل مجموعة من سجل الحضور الفعلي. عدم تسجيل الحضور لا يعني الغياب. إذا كان للمجموعة أكثر من حصة اليوم، فالحالة مشتركة بينها في النظام الحالي.</p>';
+  html += state.today.length ? '<div class="learning-day-grid">' + state.today.map(function(group) {
+    var status = group.status ? statuses[group.status] || statuses.UNKNOWN : 'لم يسجل الحضور بعد';
+    return '<article class="learning-day-card"><p class="learning-subject">' + safeText(group.subject) + '</p><h3>' + safeText(group.group) + ' <span dir="ltr">#' + group.groupId + '</span></h3><p class="learning-recorded-status" data-recorded-status="' + safeText(group.status || 'UNRECORDED') + '">' + safeText(status) + '</p>' +
+      (group.lessons.length ? '<ul>' + group.lessons.map(function(lesson) { return '<li><span dir="ltr">' + safeText(lesson.startsAt) + ' - ' + safeText(lesson.endsAt) + '</span> · ' + safeText(lessonStatuses[lesson.status] || 'حالة حصة غير معروفة') + (lesson.topic ? '<br>' + safeText(lesson.topic) : '') + '</li>'; }).join('') + '</ul>' : '<p class="monthly-note">يوجد سجل حضور، ولا توجد حصة بموعد مسجل لهذا اليوم.</p>') + '</article>';
+  }).join('') + '</div>' : '<p class="monthly-empty">لا توجد حصص بموعد مسجل أو سجلات حضور لهذا اليوم. هذا لا يعني غياب الطالب.</p>';
+  html += '</section><section class="panel"><h2 class="panel-title">آخر الدرجات المسجلة</h2><p class="monthly-note">أحدث 5 تقييمات حتى تاريخ المتابعة المختار، وليست جدول امتحانات قادمة.</p>';
+  html += state.recentGrades.length ? '<div class="learning-grade-list">' + state.recentGrades.map(function(grade) { return '<article class="learning-grade-card"><div><strong>' + safeText(grade.title) + '</strong><p>' + safeText(grade.subject + ' / ' + grade.group) + '</p><time>' + safeText(grade.assessedOn) + '</time></div><div class="learning-grade-score"><strong dir="ltr">' + grade.score + ' / ' + grade.maxScore + '</strong><span>' + grade.percentage + '%</span></div></article>'; }).join('') + '</div>' : '<p class="monthly-empty">لا توجد درجات مسجلة حتى هذا التاريخ.</p>';
+  return html + '</section>';
+}
 function renderStudentPortalView(c) {
-  var s = STATE.students[0] || { id: 1001, name: 'أحمد محمود', phone: '01011112222' };
-  c.innerHTML = `
-    <div class="view-header">
-      <div class="view-title-group">
-        <h1>بوابة الطالب الذكية</h1>
-        <p>بطاقتك الرقمية، مواعيد حصصك الأسبوعية، ومعدل حضورك</p>
-      </div>
-    </div>
-
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
-      <!-- APPLE WALLET CARD -->
-      <div class="wallet-card">
-        <div class="wallet-header">
-          <span class="wallet-brand">سنتر أجيال التعليمي</span>
-          <span class="wallet-type">بطاقة هوية طالب</span>
-        </div>
-        <div class="wallet-body">
-          <div class="wallet-student-name">${STATE.currentUser ? STATE.currentUser.name : s.name}</div>
-          <div class="wallet-meta">
-            <span>رقم الطالب: #${s.id}</span>
-            <span>الأول الثانوي</span>
-          </div>
-        </div>
-        <div class="wallet-qr-wrap">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2" style="width:120px;height:120px"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-          <div class="wallet-barcode-text">STUDENT:${s.id}</div>
-        </div>
-      </div>
-
-      <!-- MY CLASSES & SCHEDULE -->
-      <div class="panel" style="margin-bottom:0">
-        <h3 class="panel-title">حصصي ومواعيدي الأسبوعية</h3>
-        <div style="display:flex;flex-direction:column;gap:12px;margin-top:16px">
-          ${STATE.groups.slice(0, 3).map(function(g) {
-            return `
-              <div style="background:var(--bg-surface-elevated);border-radius:var(--radius-sm);padding:14px;border:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
-                <div>
-                  <strong style="font-size:14px">${g.grade}</strong>
-                  <div style="font-size:12px;color:var(--tx-muted)">${g.days}</div>
-                </div>
-                <span class="badge badge-neutral" style="font-family:var(--font-num)">⏰ ${g.time}</span>
-              </div>
-            `;
-          }).join('')}
-        </div>
-      </div>
-    </div>
-  `;
+  var state = STUDENT_REPORT;
+  if (!state.loaded && !state.loading && !state.error) { loadStudentLearning(); return; }
+  c.innerHTML = '<div class="monthly-hero"><span class="school-dashboard-eyebrow">✦ تعلمك خطوة بخطوة</span><h1>متابعة حضوري ودرجاتي</h1><p>بياناتك أنت فقط: حضور كل مادة ودرجات التقييمات المسجلة، من نفس السجلات التي يراها ولي أمرك.</p>' + (state.student && state.report ? '<p class="learning-identity"><strong>' + safeText(state.student.name) + '</strong> · كود الطالب الثابت: <code dir="ltr">' + safeText(state.code) + '</code></p>' : '') + '</div><div class="monthly-controls"><div class="field"><label for="studentReportDate">تاريخ المتابعة</label><input id="studentReportDate" type="date" min="1900-01-01" max="2199-12-31" value="' + safeText(state.date) + '" onchange="studentLearningFilterChanged()"></div><div class="field"><label for="studentReportMonth">شهر التقرير</label><input id="studentReportMonth" type="month" min="1900-01" max="2199-12" value="' + safeText(state.month) + '" onchange="studentLearningFilterChanged()"></div><button class="btn btn-secondary" onclick="loadStudentLearning()"' + (state.loading ? ' disabled' : '') + '>تحديث المتابعة</button></div>';
+  if (state.loading) { c.innerHTML += '<div class="panel monthly-empty" role="status">جارٍ تحميل بياناتك...</div>'; return; }
+  if (state.error) { c.innerHTML += '<div class="panel" role="alert">' + safeText(state.error) + '</div>'; return; }
+  if (state.report) c.innerHTML += learningTodayHtml(state) + monthlyLearningHtml(state.report);
 }
 
 /* Monthly reporting uses only server-scoped child records, never the generic student cache. */
@@ -3334,63 +3357,60 @@ function localReportDate() {
   var now = new Date();
   return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
 }
-function newParentReport() { return { children: [], studentId: '', month: localReportDate().slice(0, 7), loading: true, error: '', report: null, sequence: 0 }; }
+function newParentReport() { return { children: [], studentId: '', month: localReportDate().slice(0, 7), date: localReportDate(), loading: true, error: '', report: null, today: [], recentGrades: [], student: null, sequence: 0 }; }
 var PARENT_REPORT = newParentReport();
 function newGradeEntry() { return { month: localReportDate().slice(0, 7), items: [], loading: false, loaded: false, error: '', sequence: 0, enrollmentSequence: 0, students: [], enrollmentLoading: false, enrollmentError: '', saving: false, message: '', draft: { groupId: '', studentId: '', title: '', assessedOn: localReportDate(), score: '', maxScore: '100' } }; }
 var GRADE_ENTRY = newGradeEntry();
 function refreshMonthlyView(view) { if (STATE.activeView === view) renderActiveView(); }
 function loadParentChildren() {
-  var state = PARENT_REPORT, sequence = ++state.sequence;
+  var state = PARENT_REPORT, sequence = ++state.sequence, userId = STATE.currentUser && STATE.currentUser.id;
   state.loading = true; state.error = ''; state.report = null;
   return api('/api/portal/parent').then(function(data) {
-    if (sequence !== state.sequence) return;
+    if (!learningStateCurrent(state, sequence, userId, true)) return;
     state.children = data.children || []; state.studentId = state.children.length ? String(state.children[0].id) : '';
     if (state.studentId) return loadParentMonth();
     state.loading = false; refreshMonthlyView('portal_parent');
   }).catch(function() {
-    if (sequence !== state.sequence) return;
+    if (!learningStateCurrent(state, sequence, userId, true)) return;
     state.loading = false; state.error = 'تعذر تحميل الأبناء. تأكد من ربط حساب ولي الأمر بالأبناء داخل السنتر.';
     refreshMonthlyView('portal_parent');
   });
 }
-function loadParentMonth() {
-  var state = PARENT_REPORT, sequence = ++state.sequence;
-  state.loading = true; state.error = ''; state.report = null; refreshMonthlyView('portal_parent');
-  return api('/api/portal/parent/monthly-report?studentId=' + encodeURIComponent(state.studentId) + '&month=' + encodeURIComponent(state.month))
-    .then(function(data) { if (sequence === state.sequence) state.report = data; })
-    .catch(function() { if (sequence === state.sequence) state.error = 'تعذر تحميل التقرير. اختر شهرًا صحيحًا أو حاول مرة أخرى.'; })
-    .finally(function() { if (sequence === state.sequence) { state.loading = false; refreshMonthlyView('portal_parent'); } });
-}
+function loadParentMonth() { return loadLearningRole(true); }
 function parentFilterChanged() {
   PARENT_REPORT.studentId = document.getElementById('parentChild').value;
   PARENT_REPORT.month = document.getElementById('parentMonth').value;
+  PARENT_REPORT.date = document.getElementById('parentDate').value;
   loadParentMonth();
 }
 function monthlyTable(headings, rows, emptyText) {
   if (!rows.length) return '<p class="monthly-empty">' + safeText(emptyText) + '</p>';
+  rows = rows.map(function(row) { var index = 0; return row.replace(/<td>/g, function() { return '<td data-label="' + safeText(headings[index++]) + '">'; }); });
   return '<div class="table-wrapper"><table class="data-table"><thead><tr>' + headings.map(function(heading) { return '<th>' + safeText(heading) + '</th>'; }).join('') + '</tr></thead><tbody>' + rows.join('') + '</tbody></table></div>';
 }
 function monthlyCells(values) { return '<tr>' + values.map(function(value) { return '<td>' + safeText(value) + '</td>'; }).join('') + '</tr>'; }
 function renderParentPortalView(c) {
   var state = PARENT_REPORT, report = state.report;
-  var controls = state.children.length ? '<div class="monthly-controls"><div class="field"><label for="parentChild">الابن / الابنة</label><select id="parentChild" onchange="parentFilterChanged()">' + state.children.map(function(child) { return '<option value="' + child.id + '"' + (String(child.id) === state.studentId ? ' selected' : '') + '>' + safeText(child.name) + '</option>'; }).join('') + '</select></div><div class="field"><label for="parentMonth">شهر التقرير</label><input id="parentMonth" type="month" min="1900-01" max="2199-12" value="' + safeText(state.month) + '" onchange="parentFilterChanged()"></div><button class="btn btn-secondary" onclick="loadParentMonth()"' + (state.loading ? ' disabled' : '') + '>تحديث التقرير</button></div>' : '';
-  c.innerHTML = '<div class="monthly-hero"><span class="school-dashboard-eyebrow">✦ خطوة بخطوة مع ابنك</span><h1>تقرير المتابعة الشهري</h1><p>الحضور والغياب والدرجات المسجلة، في مكان واحد. تظهر هنا بيانات أبنائك المرتبطين بحسابك فقط.</p></div>' + controls;
+  var controls = state.children.length ? '<div class="monthly-controls"><div class="field"><label for="parentChild">الابن / الابنة</label><select id="parentChild" onchange="parentFilterChanged()">' + state.children.map(function(child) { return '<option value="' + child.id + '"' + (String(child.id) === state.studentId ? ' selected' : '') + '>' + safeText(child.name) + '</option>'; }).join('') + '</select></div><div class="field"><label for="parentMonth">شهر التقرير</label><input id="parentMonth" type="month" min="1900-01" max="2199-12" value="' + safeText(state.month) + '" onchange="parentFilterChanged()"></div><div class="field"><label for="parentDate">تاريخ المتابعة</label><input id="parentDate" type="date" min="1900-01-01" max="2199-12-31" value="' + safeText(state.date) + '" onchange="parentFilterChanged()"></div><button class="btn btn-secondary" onclick="loadParentMonth()"' + (state.loading ? ' disabled' : '') + '>تحديث التقرير</button></div>' : '';
+  c.innerHTML = '<div class="monthly-hero"><span class="school-dashboard-eyebrow">✦ خطوة بخطوة مع ابنك</span><h1>متابعة اليوم والتقرير الشهري</h1><p>الحضور والغياب والدرجات المسجلة، في مكان واحد. تظهر هنا بيانات أبنائك المرتبطين بحسابك فقط.</p></div>' + controls;
   if (state.error) { c.innerHTML += '<div class="panel" role="alert"><p>' + safeText(state.error) + '</p><button class="btn btn-secondary" onclick="loadParentChildren()">إعادة المحاولة</button></div>'; return; }
   if (state.loading) { c.innerHTML += '<div class="panel monthly-empty" role="status">جارٍ تحميل التقرير الشهري...</div>'; return; }
   if (!state.children.length) { c.innerHTML += '<div class="panel monthly-empty">لا يوجد أبناء مرتبطون بحسابك. تواصل مع إدارة السنتر لربط الحساب.</div>'; return; }
   if (!report) return;
+  c.innerHTML += learningTodayHtml(state) + monthlyLearningHtml(report);
+}
+function monthlyLearningHtml(report) {
   var summary = report.attendance.summary;
-  c.innerHTML += '<section class="monthly-summary" aria-label="ملخص الحضور">' + [
-    [summary.present, 'حضور'], [summary.absent, 'غياب مسجل'], [summary.late, 'تأخير'], [summary.excused, 'بعذر'],
-    [summary.attendanceRate === null ? '—' : summary.attendanceRate + '%', 'نسبة الحضور مع التأخير'],
-  ].map(function(item) { return '<div class="monthly-stat"><strong>' + safeText(item[0]) + '</strong><span>' + safeText(item[1]) + '</span></div>'; }).join('') + '</section>';
-  c.innerHTML += '<p class="monthly-note">يعتمد التقرير على سجل الطالب لكل مجموعة ويوم، وليس على كل حصة بتوقيتها. عدم وجود سجل لا يعني الغياب. نسبة الحضور = (الحضور + التأخير) ÷ (الحضور + التأخير + الغياب)، ولا تشمل العذر أو الحالة غير المعروفة.' + (summary.unknown ? ' توجد ' + summary.unknown + ' حالة غير معروفة، تحتاج مراجعة الإدارة.' : '') + '</p>';
-  c.innerHTML += '<section class="panel"><h2 class="panel-title">متابعة المواد والمجموعات</h2><p class="panel-subtitle">الدرجات المجمعة محسوبة من مجموع الدرجات المكتسبة ÷ مجموع الدرجات النهائية.</p>' + monthlyTable(['المادة / المجموعة', 'حضور', 'غياب', 'تأخير', 'بعذر', 'مجموع الدرجات', 'النسبة'], report.subjects.map(function(subject) {
-    return monthlyCells([subject.subject + ' / ' + subject.group, subject.attendance.present, subject.attendance.absent, subject.attendance.late, subject.attendance.excused, subject.gradeCount ? subject.score + ' / ' + subject.maxScore : 'لا توجد درجات', subject.percentage === null ? '—' : subject.percentage + '%']);
-  }), 'لا توجد سجلات حضور أو درجات في الشهر المختار.') + '</section>';
+  var html = '<section class="learning-report-month"><h2 class="panel-title">تقرير شهر ' + safeText(report.month) + '</h2><div class="monthly-summary" aria-label="ملخص الحضور الشهري">' + [[summary.present, 'حضور'], [summary.absent, 'غياب مسجل'], [summary.late, 'تأخير'], [summary.excused, 'بعذر'], [summary.attendanceRate === null ? '—' : summary.attendanceRate + '%', 'نسبة الحضور مع التأخير']].map(function(item) { return '<div class="monthly-stat"><strong>' + safeText(item[0]) + '</strong><span>' + safeText(item[1]) + '</span></div>'; }).join('') + '</div><p class="monthly-note">النسبة من سجلات الحضور والتأخير والغياب المسجلة فقط، ولا تشمل العذر أو السجلات غير المعروفة. عدم وجود سجل لا يعني الغياب.</p>';
+  html += '<section class="panel"><h2 class="panel-title">متابعة كل مادة ومجموعة</h2><p class="monthly-note">الدرجات المجمعة = مجموع الدرجات المكتسبة ÷ مجموع الدرجات النهائية. تظهر المواد المقيد بها الطالب حتى إن لم تسجل لها بيانات.</p>';
+  html += report.subjects.length ? '<div class="learning-day-grid">' + report.subjects.map(function(subject) {
+    return '<article class="learning-day-card"><p class="learning-subject">' + safeText(subject.subject) + '</p><h3>' + safeText(subject.group) + ' <span dir="ltr">#' + subject.groupId + '</span></h3><p class="monthly-note">حضور: ' + subject.attendance.present + ' · تأخير: ' + subject.attendance.late + '<br>غياب مسجل: ' + subject.attendance.absent + ' · بعذر: ' + subject.attendance.excused + '</p><p>' + (subject.gradeCount ? 'مجموع الدرجات: <strong dir="ltr">' + subject.score + ' / ' + subject.maxScore + '</strong> (' + subject.percentage + '%)' : 'لم تسجل درجات في الشهر المختار') + '</p></article>';
+  }).join('') + '</div>' : '<p class="monthly-empty">لا توجد مجموعات أو سجلات لهذا الشهر.</p>';
+  html += '</section>';
   var statuses = { PRESENT: 'حاضر', ABSENT: 'غائب', LATE: 'متأخر', EXCUSED: 'بعذر', UNKNOWN: 'غير معروف' };
-  c.innerHTML += '<section class="panel"><h2 class="panel-title">تفاصيل الحضور والغياب</h2>' + monthlyTable(['التاريخ', 'المادة', 'المجموعة', 'الحالة'], report.attendance.records.map(function(record) { return monthlyCells([record.date, record.subject, record.group, statuses[record.status] || 'غير معروف']); }), 'لم يُسجل حضور أو غياب في هذا الشهر.') + '</section>';
-  c.innerHTML += '<section class="panel"><h2 class="panel-title">درجات التقييمات</h2>' + monthlyTable(['التاريخ', 'المادة / المجموعة', 'التقييم', 'الدرجة', 'النسبة'], report.grades.map(function(grade) { return monthlyCells([grade.assessedOn, grade.subject + ' / ' + grade.group, grade.title, grade.score + ' / ' + grade.maxScore, grade.percentage + '%']); }), 'لم تُسجل درجات لهذا الشهر بعد.') + '</section>';
+  html += '<details class="panel learning-history"><summary>تفاصيل الحضور والغياب (' + report.attendance.records.length + ' سجل)</summary>' + monthlyTable(['التاريخ', 'المادة', 'المجموعة', 'الحالة'], report.attendance.records.map(function(record) { return monthlyCells([record.date, record.subject, record.group, statuses[record.status] || 'غير معروف']); }), 'لم يسجل حضور أو غياب في هذا الشهر.') + '</details>';
+  html += '<details class="panel learning-history"><summary>كل درجات الشهر (' + report.grades.length + ' تقييم)</summary>' + monthlyTable(['التاريخ', 'المادة / المجموعة', 'التقييم', 'الدرجة', 'النسبة'], report.grades.map(function(grade) { return monthlyCells([grade.assessedOn, grade.subject + ' / ' + grade.group, grade.title, grade.score + ' / ' + grade.maxScore, grade.percentage + '%']); }), 'لم تسجل درجات لهذا الشهر بعد.') + '</details>';
+  return html + '</section>';
 }
 function loadGradeRecords() {
   var state = GRADE_ENTRY, sequence = ++state.sequence;

@@ -1,0 +1,87 @@
+import type { Prisma } from '@prisma/client';
+
+type StudentLabel = { id: number; name: string };
+function monthRange(month: string) {
+  const [year, number] = month.split('-').map(Number);
+  return { gte: month + '-01', lt: number === 12 ? `${year + 1}-01-01` : `${year}-${String(number + 1).padStart(2, '0')}-01` };
+}
+
+export function attendanceStatus(status: string) {
+  const normalized = status.toUpperCase();
+  return ({ P: 'PRESENT', A: 'ABSENT', L: 'LATE', E: 'EXCUSED' } as Record<string, string>)[normalized]
+    || (['PRESENT', 'ABSENT', 'LATE', 'EXCUSED'].includes(normalized) ? normalized : 'UNKNOWN');
+}
+
+function summary(records: Array<{ status: string }>) {
+  const result = { recorded: records.length, present: 0, absent: 0, late: 0, excused: 0, unknown: 0, attendanceRate: null as number | null };
+  for (const row of records) {
+    const status = attendanceStatus(row.status);
+    if (status === 'PRESENT') result.present += 1;
+    else if (status === 'ABSENT') result.absent += 1;
+    else if (status === 'LATE') result.late += 1;
+    else if (status === 'EXCUSED') result.excused += 1;
+    else result.unknown += 1;
+  }
+  const denominator = result.present + result.late + result.absent;
+  if (denominator > 0) result.attendanceRate = Math.round(100 * (result.present + result.late) / denominator);
+  return result;
+}
+
+type SubjectGroup = {
+  id: number; grade: string; centerId: string;
+  teacher: { name: string; subject: string; centerId: string };
+  course: { name: string; subject: string; centerId: string } | null;
+};
+export function groupLabel(group: SubjectGroup, centerId: string) {
+  return {
+    groupId: group.id, group: group.grade,
+    subject: group.course?.centerId === centerId ? group.course.subject : group.teacher.centerId === centerId ? group.teacher.subject : 'مادة غير محددة',
+    teacher: group.teacher.centerId === centerId ? group.teacher.name : '',
+  };
+}
+export const learningGroupInclude = { teacher: { select: { name: true, subject: true, centerId: true } }, course: { select: { name: true, subject: true, centerId: true } } } as const;
+
+
+export async function readMonthlyLearningReport(client: Prisma.TransactionClient, student: StudentLabel, centerId: string, month: string) {
+  const studentId = student.id;
+  const range = monthRange(month);
+  const [attendance, grades] = await Promise.all([
+    client.attendance.findMany({ where: { studentId, student: { centerId }, group: { centerId }, date: range }, include: { group: { include: learningGroupInclude } }, orderBy: [{ date: 'asc' }, { groupId: 'asc' }] }),
+    client.gradeRecord.findMany({ where: { studentId, student: { centerId }, group: { centerId }, assessedOn: range }, include: { group: { include: learningGroupInclude } }, orderBy: [{ assessedOn: 'asc' }, { createdAt: 'asc' }] }),
+  ]);
+  const attendanceRows = attendance.map((row) => ({ date: row.date, status: attendanceStatus(row.status), ...groupLabel(row.group, centerId) }));
+  const gradeRows = grades.map((row) => ({ id: row.id, title: row.title, assessedOn: row.assessedOn, score: row.score, maxScore: row.maxScore, percentage: Math.round(row.score / row.maxScore * 1000) / 10, ...groupLabel(row.group, centerId) }));
+  const groupIds = [...new Set([...attendance.map((row) => row.groupId), ...grades.map((row) => row.groupId)])];
+  const subjects = groupIds.map((groupId) => {
+    const group = attendance.find((row) => row.groupId === groupId)?.group || grades.find((row) => row.groupId === groupId)!.group;
+    const marks = grades.filter((row) => row.groupId === groupId);
+    const score = marks.reduce((total, row) => total + row.score, 0);
+    const maxScore = marks.reduce((total, row) => total + row.maxScore, 0);
+    return { ...groupLabel(group, centerId), attendance: summary(attendanceRows.filter((row) => row.groupId === groupId)), gradeCount: marks.length, score, maxScore, percentage: maxScore ? Math.round(score / maxScore * 1000) / 10 : null };
+  });
+  return { student, month, attendance: { summary: summary(attendanceRows), records: attendanceRows }, grades: gradeRows, subjects };
+}
+
+export async function readLearningReport(client: Prisma.TransactionClient, student: StudentLabel, centerId: string, month: string, date: string) {
+  const studentId = student.id;
+  const [report, enrollments, lessons, attendance, recentGrades] = await Promise.all([
+    readMonthlyLearningReport(client, student, centerId, month),
+    client.enrollment.findMany({ where: { studentId, student: { centerId }, group: { centerId } }, include: { group: { include: learningGroupInclude } }, orderBy: { groupId: 'asc' } }),
+    client.lessonSession.findMany({ where: { date, group: { centerId, enrollments: { some: { studentId, student: { centerId } } } } }, include: { group: { include: learningGroupInclude } }, orderBy: [{ startsAt: 'asc' }, { groupId: 'asc' }] }),
+    client.attendance.findMany({ where: { studentId, student: { centerId }, group: { centerId }, date }, include: { group: { include: learningGroupInclude } }, orderBy: { groupId: 'asc' } }),
+    client.gradeRecord.findMany({ where: { studentId, student: { centerId }, group: { centerId }, assessedOn: { lte: date } }, include: { group: { include: learningGroupInclude } }, orderBy: [{ assessedOn: 'desc' }, { createdAt: 'desc' }, { id: 'asc' }], take: 5 }),
+  ]);
+  const groups = new Map<number, (typeof lessons)[number]['group']>();
+  for (const row of lessons) groups.set(row.groupId, row.group);
+  for (const row of attendance) groups.set(row.groupId, row.group);
+  const today = [...groups.values()].map(group => {
+    const record = attendance.find(row => row.groupId === group.id);
+    return { ...groupLabel(group, centerId), status: record ? attendanceStatus(record.status) : null,
+      lessons: lessons.filter(row => row.groupId === group.id).map(row => ({ id: row.id, startsAt: row.startsAt, endsAt: row.endsAt, status: row.status, topic: row.topic })),
+    };
+  });
+  // Keep the old monthly endpoint's shape; the new unified view also lists unrecorded enrolled subjects.
+  const subjects = [...report.subjects];
+  for (const { group } of enrollments) if (!subjects.some(row => row.groupId === group.id)) subjects.push({ ...groupLabel(group, centerId), attendance: summary([]), gradeCount: 0, score: 0, maxScore: 0, percentage: null });
+  return { student, date, month, today, recentGrades: recentGrades.map(row => ({ id: row.id, ...groupLabel(row.group, centerId), title: row.title, assessedOn: row.assessedOn, score: row.score, maxScore: row.maxScore, percentage: Math.round(row.score / row.maxScore * 1000) / 10 })), report: { ...report, subjects }, code: `STUDENT:${studentId}` };
+}
