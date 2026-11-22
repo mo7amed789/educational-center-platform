@@ -1831,6 +1831,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
  #attendanceTableContainer td:nth-child(4)::before { content:'الحالة: '; color:var(--tx-muted); }
  #attendanceTableContainer .attendance-row-actions { min-width:0; }
 }
+
+/* Filled attendance states remain readable in both palettes without changing the theme. */
+.attendance-status-badge{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-width:88px;max-width:100%;padding:7px 13px;border-radius:12px;font-size:12px;font-weight:800;line-height:1.5;white-space:nowrap;box-sizing:border-box;border:1px solid rgba(255,255,255,.16);vertical-align:middle}
+.attendance-status-badge [aria-hidden]{font-size:9px;line-height:1}
+.attendance-status-present{background:#087f5b;color:#ffffff}
+.attendance-status-absent{background:#be3455;color:#ffffff}
+.attendance-status-late{background:#f6c453;color:#271b0b}
+.attendance-status-excused{background:#315da8;color:#ffffff}
+.attendance-status-neutral{background:#e4e5ed;color:#3d4158}
+[data-theme="dark"] .attendance-status-neutral{background:#494253;color:#f5f1ff}
 </style>
 </head>
 <body>
@@ -2896,6 +2906,12 @@ function attendanceCurrent(state, userId, key) { return ATTENDANCE_PAGE === stat
 function attendanceStatusLabel(status) {
   return { PRESENT: 'حاضر', P: 'حاضر', ABSENT: 'غائب', A: 'غائب', LATE: 'متأخر', L: 'متأخر', EXCUSED: 'بعذر', E: 'بعذر' }[String(status || '').toUpperCase()] || (status ? 'حالة غير معروفة' : 'لم يسجل بعد');
 }
+function attendanceStatusBadge(status, label) {
+  var key = String(status || '').toUpperCase();
+  key = ({ P: 'PRESENT', A: 'ABSENT', L: 'LATE', E: 'EXCUSED' })[key] || key;
+  var tone = ({ PRESENT: 'present', ABSENT: 'absent', LATE: 'late', EXCUSED: 'excused' })[key] || 'neutral';
+  return '<span class="attendance-status-badge attendance-status-' + tone + '"><span aria-hidden="true">●</span> ' + safeText(label || attendanceStatusLabel(status)) + '</span>';
+}
 function attendanceError(error) {
   return { INVALID_INPUT: 'راجع الكود والمجموعة والتاريخ.', INVALID_SELECTION: 'اختر مجموعة وتاريخا صحيحين.', INVALID_STUDENT_CODE: 'اكتب رقم الطالب أو الكود بالشكل STUDENT:1001.', GROUP_NOT_FOUND: 'المجموعة غير متاحة ضمن صلاحياتك.', STUDENT_NOT_ENROLLED: 'الكود غير مقيد في المجموعة المختارة. لم يسجل حضور.', FORBIDDEN: 'حسابك لا يملك صلاحية هذا الإجراء.' }[error.message] || 'تعذر إتمام الطلب. حاول مرة أخرى.';
 }
@@ -2931,7 +2947,7 @@ function drawAttendanceRoster() {
   if (state.loading) { container.innerHTML = '<p class="monthly-empty" role="status">جارٍ تحميل سجل المجموعة...</p>'; return; }
   if (state.error) { container.innerHTML = '<p class="monthly-empty" role="alert">' + safeText(state.error) + '</p>'; return; }
   container.innerHTML = monthlyTable(['رقم الطالب', 'اسم الطالب', 'الكود الثابت', 'الحالة الحالية', 'تغيير الحالة'], state.rows.map(function(s) {
-    return '<tr><td>#' + s.id + '</td><td>' + safeText(s.name) + '</td><td dir="ltr"><code>' + safeText(s.code) + '</code></td><td>' + safeText(attendanceStatusLabel(s.status)) + '</td><td><div class="attendance-row-actions">' + [['PRESENT', 'حاضر', 'success'], ['ABSENT', 'غائب', 'danger'], ['LATE', 'متأخر', 'secondary'], ['EXCUSED', 'بعذر', 'secondary']].map(function(item) { return '<button type="button" class="btn btn-sm btn-' + item[2] + '" data-att-write onclick="recordAttendanceDirect(' + s.id + ',\'' + item[0] + '\')">' + item[1] + '</button>'; }).join('') + '</div></td></tr>';
+    return '<tr><td>#' + s.id + '</td><td>' + safeText(s.name) + '</td><td dir="ltr"><code>' + safeText(s.code) + '</code></td><td>' + attendanceStatusBadge(s.status) + '</td><td><div class="attendance-row-actions">' + [['PRESENT', 'حاضر', 'success'], ['ABSENT', 'غائب', 'danger'], ['LATE', 'متأخر', 'secondary'], ['EXCUSED', 'بعذر', 'secondary']].map(function(item) { return '<button type="button" class="btn btn-sm btn-' + item[2] + '" data-att-write onclick="recordAttendanceDirect(' + s.id + ',\'' + item[0] + '\')">' + item[1] + '</button>'; }).join('') + '</div></td></tr>';
   }), 'لا يوجد طلاب مقيدون بهذه المجموعة ضمن صلاحياتك.');
   setAttendanceBusy(state.busy);
 }
@@ -3323,7 +3339,7 @@ function learningTodayHtml(state) {
   var html = '<section class="panel learning-today"><h2 class="panel-title">' + safeText(title) + '</h2><p class="monthly-note">حالة كل مجموعة من سجل الحضور الفعلي. عدم تسجيل الحضور لا يعني الغياب. إذا كان للمجموعة أكثر من حصة اليوم، فالحالة مشتركة بينها في النظام الحالي.</p>';
   html += state.today.length ? '<div class="learning-day-grid">' + state.today.map(function(group) {
     var status = group.status ? statuses[group.status] || statuses.UNKNOWN : 'لم يسجل الحضور بعد';
-    return '<article class="learning-day-card"><p class="learning-subject">' + safeText(group.subject) + '</p><h3>' + safeText(group.group) + ' <span dir="ltr">#' + group.groupId + '</span></h3><p class="learning-recorded-status" data-recorded-status="' + safeText(group.status || 'UNRECORDED') + '">' + safeText(status) + '</p>' +
+    return '<article class="learning-day-card"><p class="learning-subject">' + safeText(group.subject) + '</p><h3>' + safeText(group.group) + ' <span dir="ltr">#' + group.groupId + '</span></h3><p class="learning-recorded-status" data-recorded-status="' + safeText(group.status || 'UNRECORDED') + '">' + attendanceStatusBadge(group.status, status) + '</p>' +
       (group.lessons.length ? '<ul>' + group.lessons.map(function(lesson) { return '<li><span dir="ltr">' + safeText(lesson.startsAt) + ' - ' + safeText(lesson.endsAt) + '</span> · ' + safeText(lessonStatuses[lesson.status] || 'حالة حصة غير معروفة') + (lesson.topic ? '<br>' + safeText(lesson.topic) : '') + '</li>'; }).join('') + '</ul>' : '<p class="monthly-note">يوجد سجل حضور، ولا توجد حصة بموعد مسجل لهذا اليوم.</p>') + '</article>';
   }).join('') + '</div>' : '<p class="monthly-empty">لا توجد حصص بموعد مسجل أو سجلات حضور لهذا اليوم. هذا لا يعني غياب الطالب.</p>';
   html += '</section><section class="panel"><h2 class="panel-title">آخر الدرجات المسجلة</h2><p class="monthly-note">أحدث 5 تقييمات حتى تاريخ المتابعة المختار، وليست جدول امتحانات قادمة.</p>';
@@ -3400,7 +3416,7 @@ function monthlyLearningHtml(report) {
   }).join('') + '</div>' : '<p class="monthly-empty">لا توجد مجموعات أو سجلات لهذا الشهر.</p>';
   html += '</section>';
   var statuses = { PRESENT: 'حاضر', ABSENT: 'غائب', LATE: 'متأخر', EXCUSED: 'بعذر', UNKNOWN: 'غير معروف' };
-  html += '<details class="panel learning-history"><summary>تفاصيل الحضور والغياب (' + report.attendance.records.length + ' سجل)</summary>' + monthlyTable(['التاريخ', 'المادة', 'المجموعة', 'الحالة'], report.attendance.records.map(function(record) { return monthlyCells([record.date, record.subject, record.group, statuses[record.status] || 'غير معروف']); }), 'لم يسجل حضور أو غياب في هذا الشهر.') + '</details>';
+  html += '<details class="panel learning-history"><summary>تفاصيل الحضور والغياب (' + report.attendance.records.length + ' سجل)</summary>' + monthlyTable(['التاريخ', 'المادة', 'المجموعة', 'الحالة'], report.attendance.records.map(function(record) { return '<tr><td>' + safeText(record.date) + '</td><td>' + safeText(record.subject) + '</td><td>' + safeText(record.group) + '</td><td>' + attendanceStatusBadge(record.status, statuses[record.status] || 'غير معروف') + '</td></tr>'; }), 'لم يسجل حضور أو غياب في هذا الشهر.') + '</details>';
   html += '<details class="panel learning-history"><summary>كل درجات الشهر (' + report.grades.length + ' تقييم)</summary>' + monthlyTable(['التاريخ', 'المادة / المجموعة', 'التقييم', 'الدرجة', 'النسبة'], report.grades.map(function(grade) { return monthlyCells([grade.assessedOn, grade.subject + ' / ' + grade.group, grade.title, grade.score + ' / ' + grade.maxScore, grade.percentage + '%']); }), 'لم تسجل درجات لهذا الشهر بعد.') + '</details>';
   return html + '</section>';
 }
