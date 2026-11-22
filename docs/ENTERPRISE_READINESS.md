@@ -9,7 +9,7 @@ This document separates implemented controls from deployment-dependent work. The
 - [x] Manager UI for MFA setup, verification, and disable flow
 - [x] Authenticated password rotation with session revocation
 - [x] Role and permission checks on protected API routes
-- [x] Center-scoped resource queries and teacher/student/guardian scopes
+- [ ] Complete API-wide center, branch and role resource-scope audit. Some routes are scoped, but this is not yet a verified platform-wide boundary.
 - [x] Helmet security headers and rate limiting
 - [x] Input schemas for authentication, attendance, subscriptions, and legacy import
 - [x] Upload size limit, XLSX extension allowlist, and ZIP signature check
@@ -37,4 +37,17 @@ This document separates implemented controls from deployment-dependent work. The
 
 ## Current release gate
 
-The project uses SQLite for local development. Production deployment must stop until PostgreSQL migrations, HTTPS, secret management, backups, and the remaining security controls are configured in a real staging environment. The current dependency audit still reports Prisma 6 high-severity advisories; upgrade and compatibility verification are required before release. The CI audit is intentionally a release gate and should remain failing while those advisories are unresolved.
+The project uses SQLite for local development. Production deployment must stop until PostgreSQL migrations, HTTPS, secret management, backups, and the remaining security controls are configured in a real staging environment. The local production-dependency audit (`npm audit --omit=dev --audit-level=high`) reports zero vulnerabilities in this slice. Keep the CI dependency audit enabled. A passing audit is not proof of production readiness, and development-tool dependencies need their own review.
+
+## Tenant audit, import and finance slice
+
+Verified against disposable two-center fixtures:
+
+- Legacy teacher/group/student imports cannot take over an ID belonging to another center. The current schema uses global numeric IDs. A collision rejects and rolls back the import instead of remapping or moving existing data.
+- JSON import includes its audit in the same transaction. Excel import includes legacy sheets, validated subscription rows and the audit in one transaction. Subscription rows require a same-center student, group and enrollment. An invalid later row rolls back earlier sheets and rows.
+- Teacher deletion checks the target center and keeps the center predicate on the delete. Deletion and its audit are atomic. Foreign and missing IDs both return 404.
+- Payment reads check both student and group centers. Guardian reads are restricted to linked own-center children; new responses omit unrelated contact fields.
+- Payment recording requires a same-center enrollment. Payment, subscription update and audit are atomic. This records internal bookkeeping only, not a gateway charge.
+- Regression tests reproduce the former failures on the baseline and verify rollback with a forced audit failure.
+
+This slice is not the whole security audit. Still to review: branch-admin scope across all routes, related teacher/course/classroom/branch IDs on writes, attendance and scan scopes, nested relation disclosure, permission-denial overrides and export scope. The old payment upsert/partial-payment accounting model also needs the separate billing review before real financial use.
