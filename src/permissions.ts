@@ -24,7 +24,7 @@ const rolePermissions: Record<Role, readonly Permission[]> = {
   BRANCH_ADMIN: without('backups.restore', 'settings.manage_security', 'finance.refund', 'settings.manage_integrations'),
   RECEPTIONIST: ['students.view', 'students.create', 'students.update', 'students.enroll', 'teachers.view', 'groups.view', 'attendance.view', 'attendance.create', 'reports.view', 'notifications.manage'],
   ACCOUNTANT: ['students.view', 'groups.view', 'finance.view', 'finance.view_reports', 'finance.manage_invoices', 'finance.record_payment', 'finance.refund', 'finance.manage_expenses', 'finance.export', 'reports.view', 'reports.export'],
-  TEACHER: ['students.view_assigned', 'groups.view', 'attendance.view', 'attendance.create', 'attendance.update', 'academic.view', 'academic.manage_assignments', 'academic.manage_exams', 'academic.manage_grades'],
+  TEACHER: ['students.view_assigned', 'groups.view', 'attendance.view', 'academic.view', 'academic.manage_assignments', 'academic.manage_exams', 'academic.manage_grades'],
   STUDENT: ['students.view', 'groups.view', 'attendance.view', 'academic.view'],
   GUARDIAN: ['students.view', 'groups.view', 'attendance.view', 'finance.view', 'academic.view'],
 };
@@ -39,4 +39,4 @@ export function permissionsFor(role: Role): readonly Permission[] {
 
 export function permissionDescriptions(): Array<{ key: Permission; description: string }> {
   return PERMISSIONS.map((key) => ({ key, description: key.replace(/[._]/g, ' ') }));
-               }
+  }
