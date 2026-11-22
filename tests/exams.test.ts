@@ -40,6 +40,36 @@ describe('scoped exam schedules, draft grades and explicit publication',()=>{
   it('allows teachers to schedule and grade assigned groups without granting publication',async()=>{expect((await create({},'teacher')).statusCode).toBe(201);expect((await create({groupId:unassigned},'teacher')).statusCode).toBe(404);const id=await make();expect((await result(id,2,pupil,'teacher')).statusCode).toBe(201);expect((await history(id,pupil,'teacher')).json().canCorrect).toBe(true);expect((await correct(id,{},'teacher')).statusCode).toBe(200);expect((await publish(id,'teacher')).statusCode).toBe(403);const body=(await request('GET','/api/center/exams?month=2026-11',undefined,'teacher')).json();expect(body.capabilities).toEqual({recordResults:true,publishResults:false});expect(body.groups.map((g:{groupId:number})=>g.groupId)).not.toContain(unassigned);});
   it('honors explicit permission denial and inactive center membership',async()=>{await prisma.userPermission.create({data:{userId:users.owner,permissionKey:'academic.manage_exams',allowed:false}});try{expect((await create()).statusCode).toBe(403);}finally{await prisma.userPermission.deleteMany({where:{userId:users.owner}});}await prisma.centerMembership.update({where:{userId_centerId:{userId:users.owner,centerId:center}},data:{active:false}});try{expect((await create()).statusCode).toBe(403);}finally{await prisma.centerMembership.update({where:{userId_centerId:{userId:users.owner,centerId:center}},data:{active:true}});}});
   it('shows schedules only for the learner current same-center enrollments',async()=>{const id=await make({title:'Own scheduled exam'});await make({title:'Unrelated scheduled exam',groupId:unassigned});const own=(await learner()).json();expect(own.examSchedule.some((e:{id:string})=>e.id===id)).toBe(true);expect(JSON.stringify(own.examSchedule)).not.toContain('Unrelated scheduled exam');expect(JSON.stringify(own)).not.toMatch(/private-phone|private-parent|private-teacher/);});
+  it('offers only unpublished, selected-month exams in the grade-authorized teacher scope', async () => {
+    const own = await make({ title: 'Grade picker own exam' });
+    const unrelated = await make({ title: 'Grade picker unrelated', groupId: unassigned });
+    const nextMonth = await make({ title: 'Grade picker next month', date: '2026-12-01' });
+    const published = await make({ title: 'Grade picker published' }); await prisma.exam.update({ where: { id: published }, data: { publishedAt: new Date() } });
+    const res = await request('GET', '/api/center/grades/exams?month=2026-11', undefined, 'teacher'); expect(res.statusCode).toBe(200);
+    const body = res.json(); expect(body.limit).toBe(200); expect(body.exams.find((exam: { id: string }) => exam.id === own)).toMatchObject({ title: 'Grade picker own exam', groupId: group, date: '2026-11-23', maxScore: 20 });
+    expect(body.exams.map((exam: { id: string }) => exam.id)).not.toEqual(expect.arrayContaining([unrelated, nextMonth, published]));
+    for (const id of [unrelated, nextMonth, published]) expect(body.exams.some((exam: { id: string }) => exam.id === id)).toBe(false);
+    expect(JSON.stringify(body)).not.toMatch(/private-phone|private-parent|private-teacher/);
+  });
+  it('lets grade-only teachers choose existing exams without scheduling permission', async () => {
+    await prisma.userPermission.create({ data: { userId: users.teacher, permissionKey: 'academic.manage_exams', allowed: false } });
+    try { expect((await request('GET', '/api/center/exams?month=2026-11', undefined, 'teacher')).statusCode).toBe(403); const res = await request('GET', '/api/center/grades/exams?month=2026-11', undefined, 'teacher'); expect(res.statusCode).toBe(200); expect(res.json().canManageExams).toBe(false); expect(res.json().exams.length).toBeGreaterThan(0); }
+    finally { await prisma.userPermission.deleteMany({ where: { userId: users.teacher } }); }
+  });
+  it('denies the exam grading picker without grade permission even when scheduling is allowed', async () => {
+    await prisma.userPermission.create({ data: { userId: users.teacher, permissionKey: 'academic.manage_grades', allowed: false } });
+    try { expect((await request('GET', '/api/center/grades/exams?month=2026-11', undefined, 'teacher')).statusCode).toBe(403); }
+    finally { await prisma.userPermission.deleteMany({ where: { userId: users.teacher } }); }
+  });
+  it.each(['none', 'student', 'parent'])('keeps %s out of the grading exam picker', async who => {
+    if (who !== 'none') await prisma.userPermission.create({ data: { userId: users[who], permissionKey: 'academic.manage_grades', allowed: true } });
+    try { expect((await request('GET', '/api/center/grades/exams?month=2026-11', undefined, who)).statusCode).toBe(who === 'none' ? 401 : 403); }
+    finally { if (who !== 'none') await prisma.userPermission.deleteMany({ where: { userId: users[who] } }); }
+  });
+  it('validates grading-picker month and rejects client scope parameters', async () => {
+    for (const query of ['', '?month=2026-13', '?month=2026-11&groupId=' + unassigned]) expect((await request('GET', '/api/center/grades/exams' + query)).statusCode).toBe(422);
+    const res = await request('GET', '/api/center/grades/exams?month=2026-11', undefined, 'branch'); expect(res.statusCode).toBe(200); expect(res.json().exams.every((exam: { groupId: number }) => [group, unassigned].includes(exam.groupId))).toBe(true);
+  });
   it('rejects an unrecorded publication',async()=>{expect((await publish(await make())).statusCode).toBe(422);});
   it('validates score maximum and actual enrollment, including corrupt foreign enrollment',async()=>{const id=await make();expect((await result(id,21)).statusCode).toBe(422);expect((await result(id,-1)).statusCode).toBe(422);expect((await result(id,2,otherPupil)).statusCode).toBe(404);expect((await result(id,2,foreignPupil)).statusCode).toBe(404);});
   it('records zero, keeps drafts hidden everywhere, then publishes the same own-only grade',async()=>{
