@@ -8,6 +8,7 @@ import rateLimit from '@fastify/rate-limit';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { prisma } from './prisma.js';
+import { branchScope, branchForWrite, registerBranchScopeGuard } from './resourceScopes.js';
 import { registerMonthlyReportRoutes } from './monthlyReports.js';
 import { createSession, destroySession, publicUser, requirePermission, requireUser, currentUser, generateMfaSecret, verifyMfaCode, SESSION_COOKIE } from './auth.js';
 import { authorize } from './authorization.js';
@@ -30,6 +31,7 @@ export function buildApp() {
   app.register(multipart, { limits: { fileSize: 10 * 1024 * 1024, files: 1 } });
   app.register(helmet, { contentSecurityPolicy: false });
   app.register(rateLimit, { max: 100, timeWindow: '1 minute' });
+  registerBranchScopeGuard(app);
   app.addHook('onResponse', async (request, reply) => {
     requestMetrics.total += 1;
     requestMetrics.byStatus.set(reply.statusCode, (requestMetrics.byStatus.get(reply.statusCode) || 0) + 1);
@@ -237,14 +239,14 @@ export function buildApp() {
     const query = z.object({ page: z.coerce.number().int().min(1).default(1), pageSize: z.coerce.number().int().min(1).max(100).default(25), search: z.string().trim().max(100).optional() }).parse(request.query);
     const canViewCenterStudents = ['SUPER_ADMIN', 'CENTER_OWNER', 'CENTER_ADMIN', 'BRANCH_ADMIN', 'RECEPTIONIST'].includes(user.role);
     const where = canViewCenterStudents
-      ? { centerId: user.centerId, ...(query.search ? { name: { contains: query.search } } : {}) }
+      ? { ...branchScope(user), ...(query.search ? { name: { contains: query.search } } : {}) }
       : user.role === 'TEACHER'
-        ? { centerId: user.centerId, enrollments: { some: { group: { teacher: { userId: user.id } } } }, ...(query.search ? { name: { contains: query.search } } : {}) }
+        ? { ...branchScope(user), enrollments: { some: { group: { teacher: { userId: user.id } } } }, ...(query.search ? { name: { contains: query.search } } : {}) }
       : user.role === 'STUDENT'
-        ? { centerId: user.centerId, userId: user.id, ...(query.search ? { name: { contains: query.search } } : {}) }
+        ? { ...branchScope(user), userId: user.id, ...(query.search ? { name: { contains: query.search } } : {}) }
         : null;
     if (!where) return reply.code(403).send({ error: 'RESOURCE_SCOPE_REQUIRED' });
-    const [items, total] = await prisma.$transaction([prisma.student.findMany({ where, include: { enrollments: { select: { groupId: true } } }, orderBy: { name: 'asc' }, skip: (query.page - 1) * query.pageSize, take: query.pageSize }), prisma.student.count({ where })]);
+    const [items, total] = await prisma.$transaction([prisma.student.findMany({ where, include: { enrollments: { where: { group: branchScope(user) }, select: { groupId: true } } }, orderBy: { name: 'asc' }, skip: (query.page - 1) * query.pageSize, take: query.pageSize }), prisma.student.count({ where })]);
     return { items, page: query.page, pageSize: query.pageSize, total };
   });
 
@@ -252,17 +254,17 @@ export function buildApp() {
     const user = await requireUser(request, reply); if (!user) return;
     if (!user.centerId || !(await authorize(user.id, 'groups.view', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
     if (!['SUPER_ADMIN', 'CENTER_OWNER', 'CENTER_ADMIN', 'BRANCH_ADMIN', 'RECEPTIONIST', 'TEACHER'].includes(user.role)) return reply.code(403).send({ error: 'RESOURCE_SCOPE_REQUIRED' });
-    let groupWhere: Record<string, unknown> = { centerId: user.centerId };
+    let groupWhere: Record<string, unknown> = branchScope(user);
     if (user.role === 'TEACHER') {
       const teacher = await prisma.teacher.findUnique({ where: { userId: user.id }, select: { id: true } });
       if (!teacher) return reply.code(403).send({ error: 'TEACHER_PROFILE_REQUIRED' });
       groupWhere = { centerId: user.centerId, teacherId: teacher.id };
     }
     const [teachers, groups, courses, classrooms] = await prisma.$transaction([
-      prisma.teacher.findMany({ where: { centerId: user.centerId }, orderBy: { name: 'asc' } }),
+      prisma.teacher.findMany({ where: branchScope(user), orderBy: { name: 'asc' } }),
       prisma.group.findMany({ where: groupWhere, include: { schedules: true, lessons: { orderBy: { date: 'asc' }, take: 10 }, course: true }, orderBy: { id: 'asc' } }),
       prisma.course.findMany({ where: { centerId: user.centerId, active: true }, orderBy: { name: 'asc' } }),
-      prisma.classroom.findMany({ where: { centerId: user.centerId }, orderBy: { name: 'asc' } }),
+      prisma.classroom.findMany({ where: branchScope(user), orderBy: { name: 'asc' } }),
     ]);
     return { teachers, groups, courses, classrooms };
   });
@@ -273,12 +275,12 @@ export function buildApp() {
     const query = z.object({ month: z.string().regex(/^\d{4}-\d{2}$/).optional() }).parse(request.query);
     const month = query.month || new Date().toISOString().slice(0, 7);
     const [students, teachers, groups, attendance, subscriptions, revenue] = await prisma.$transaction([
-      prisma.student.count({ where: { centerId: user.centerId } }),
-      prisma.teacher.count({ where: { centerId: user.centerId } }),
-      prisma.group.count({ where: { centerId: user.centerId } }),
-      prisma.attendance.groupBy({ by: ['status'], where: { group: { centerId: user.centerId } }, orderBy: { status: 'asc' }, _count: { _all: true } }),
-      prisma.subscription.groupBy({ by: ['status'], where: { group: { centerId: user.centerId }, month }, orderBy: { status: 'asc' }, _count: { _all: true } }),
-      prisma.subscription.aggregate({ where: { group: { centerId: user.centerId }, month, status: { in: ['paid', 'partial'] } }, _sum: { amount: true, discount: true } }),
+      prisma.student.count({ where: branchScope(user) }),
+      prisma.teacher.count({ where: branchScope(user) }),
+      prisma.group.count({ where: branchScope(user) }),
+      prisma.attendance.groupBy({ by: ['status'], where: { student: { centerId: user.centerId }, group: branchScope(user) }, orderBy: { status: 'asc' }, _count: { _all: true } }),
+      prisma.subscription.groupBy({ by: ['status'], where: { student: { centerId: user.centerId }, group: branchScope(user), month }, orderBy: { status: 'asc' }, _count: { _all: true } }),
+      prisma.subscription.aggregate({ where: { student: { centerId: user.centerId }, group: branchScope(user), month, status: { in: ['paid', 'partial'] } }, _sum: { amount: true, discount: true } }),
     ]);
     const countRows = (rows: Array<{ status: string; _count?: { _all?: number } }>) => Object.fromEntries(rows.map((item) => [item.status, item._count?._all || 0]));
     return { month, counts: { students, teachers, groups }, attendance: countRows(attendance as Array<{ status: string; _count?: { _all?: number } }>), subscriptions: countRows(subscriptions as Array<{ status: string; _count?: { _all?: number } }>), revenue: { amount: revenue._sum.amount || 0, discount: revenue._sum.discount || 0 } };
@@ -296,7 +298,7 @@ export function buildApp() {
     const user = await requireUser(request, reply); if (!user) return;
     if (!user.centerId || !(await authorize(user.id, 'groups.view', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
     const query = z.object({ status: z.enum(['scheduled', 'active', 'completed', 'cancelled']).optional(), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() }).parse(request.query);
-    let groupScope: Record<string, unknown> = { centerId: user.centerId };
+    let groupScope: Record<string, unknown> = branchScope(user);
     if (user.role === 'TEACHER') {
       const teacher = await prisma.teacher.findUnique({ where: { userId: user.id }, select: { id: true } });
       if (!teacher) return reply.code(403).send({ error: 'TEACHER_PROFILE_REQUIRED' });
@@ -315,7 +317,7 @@ export function buildApp() {
     if (!user.centerId || !(await authorize(user.id, 'attendance.view', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
     const query = z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), groupId: z.coerce.number().int().positive().optional() }).parse(request.query);
     let studentScope: Record<string, unknown> | undefined;
-    let groupScope: Record<string, unknown> = { centerId: user.centerId };
+    let groupScope: Record<string, unknown> = branchScope(user);
     if (user.role === 'TEACHER') {
       const teacher = await prisma.teacher.findUnique({ where: { userId: user.id }, select: { id: true } });
       if (!teacher) return reply.code(403).send({ error: 'TEACHER_PROFILE_REQUIRED' });
@@ -325,7 +327,7 @@ export function buildApp() {
     } else if (user.role === 'GUARDIAN') {
       studentScope = { guardianLinks: { some: { guardian: { userId: user.id } } } };
     }
-    const items = await prisma.attendance.findMany({ where: { group: groupScope, ...(studentScope ? { student: studentScope } : {}), ...(query.date ? { date: query.date } : {}), ...(query.groupId ? { groupId: query.groupId } : {}) }, include: { student: true, group: { include: { teacher: true } } }, orderBy: [{ date: 'desc' }, { student: { name: 'asc' } }], take: 500 });
+    const items = await prisma.attendance.findMany({ where: { student: { centerId: user.centerId, ...(studentScope || {}) }, group: groupScope, ...(query.date ? { date: query.date } : {}), ...(query.groupId ? { groupId: query.groupId } : {}) }, include: { student: true, group: { include: { teacher: true } } }, orderBy: [{ date: 'desc' }, { student: { name: 'asc' } }], take: 500 });
     return { items };
   });
 
@@ -333,16 +335,16 @@ export function buildApp() {
     const user = await requireUser(request, reply); if (!user) return;
     if (!user.centerId || !(await authorize(user.id, 'attendance.create', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
     const input = z.object({ studentId: z.coerce.number().int().positive(), groupId: z.coerce.number().int().positive(), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), status: z.enum(['PRESENT', 'ABSENT', 'LATE', 'EXCUSED']), note: z.string().trim().max(500).optional() }).parse(request.body);
-    const group = await prisma.group.findFirst({ where: { id: input.groupId, centerId: user.centerId }, select: { id: true } });
-    const enrollment = await prisma.enrollment.findUnique({ where: { studentId_groupId: { studentId: input.studentId, groupId: input.groupId } } });
-    if (!group || !enrollment) return reply.code(422).send({ error: 'INVALID_ENROLLMENT' });
-    if (user.role === 'TEACHER') {
-      const teacher = await prisma.teacher.findUnique({ where: { userId: user.id }, select: { id: true } });
-      const assigned = teacher ? await prisma.group.findFirst({ where: { id: input.groupId, teacherId: teacher.id }, select: { id: true } }) : null;
-      if (!assigned) return reply.code(403).send({ error: 'GROUP_NOT_ASSIGNED' });
-    }
-    const attendance = await prisma.attendance.upsert({ where: { studentId_groupId_date: { studentId: input.studentId, groupId: input.groupId, date: input.date } }, update: { status: input.status, note: input.note }, create: input });
-    await prisma.auditLog.create({ data: { centerId: user.centerId, userId: user.id, action: 'attendance.record', entity: 'Attendance', entityId: `${input.studentId}:${input.groupId}:${input.date}`, metadata: JSON.stringify({ status: input.status }) } });
+    const result = await prisma.$transaction(async (tx) => {
+      const enrollment = await tx.enrollment.findFirst({ where: { studentId: input.studentId, groupId: input.groupId, student: { centerId: user.centerId! }, group: branchScope(user) }, include: { group: { include: { teacher: { select: { userId: true, centerId: true } } } } } });
+      if (!enrollment) return { error: 'INVALID_ENROLLMENT' } as const;
+      if (user.role === 'TEACHER' && (enrollment.group.teacher.userId !== user.id || enrollment.group.teacher.centerId !== user.centerId)) return { error: 'GROUP_NOT_ASSIGNED' } as const;
+      const attendance = await tx.attendance.upsert({ where: { studentId_groupId_date: { studentId: input.studentId, groupId: input.groupId, date: input.date } }, update: { status: input.status, note: input.note }, create: input });
+      await tx.auditLog.create({ data: { centerId: user.centerId, userId: user.id, action: 'attendance.record', entity: 'Attendance', entityId: `${input.studentId}:${input.groupId}:${input.date}`, metadata: JSON.stringify({ status: input.status }) } });
+      return { attendance };
+    });
+    if ('error' in result) return reply.code(result.error === 'GROUP_NOT_ASSIGNED' ? 403 : 422).send({ error: result.error });
+    const { attendance } = result;
     return { attendance };
   });
 
@@ -353,7 +355,7 @@ export function buildApp() {
     let studentScope: Record<string, unknown> | undefined;
     if (user.role === 'STUDENT') studentScope = { userId: user.id };
     if (user.role === 'GUARDIAN') studentScope = { guardianLinks: { some: { guardian: { userId: user.id } } } };
-    const items = await prisma.subscription.findMany({ where: { group: { centerId: user.centerId }, ...(studentScope ? { student: studentScope } : {}), ...(query.month ? { month: query.month } : {}), ...(query.status ? { status: query.status } : {}) }, include: { student: true, group: true }, orderBy: [{ month: 'desc' }, { status: 'asc' }], take: 1000 });
+    const items = await prisma.subscription.findMany({ where: { group: branchScope(user), student: { centerId: user.centerId, ...(studentScope || {}) }, ...(query.month ? { month: query.month } : {}), ...(query.status ? { status: query.status } : {}) }, include: { student: true, group: true }, orderBy: [{ month: 'desc' }, { status: 'asc' }], take: 1000 });
     return { items };
   });
 
@@ -361,59 +363,41 @@ export function buildApp() {
     const user = await requireUser(request, reply); if (!user) return;
     if (!user.centerId || !(await authorize(user.id, 'finance.manage_fees', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
     const input = z.object({ studentId: z.coerce.number().int().positive(), groupId: z.coerce.number().int().positive(), month: z.string().regex(/^\d{4}-\d{2}$/), amount: z.coerce.number().int().nonnegative(), discount: z.coerce.number().int().nonnegative().default(0), dueOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), status: z.enum(['paid', 'partial', 'pending', 'overdue']) }).parse(request.body);
-    const group = await prisma.group.findFirst({ where: { id: input.groupId, centerId: user.centerId }, select: { id: true } });
-    const enrollment = await prisma.enrollment.findUnique({ where: { studentId_groupId: { studentId: input.studentId, groupId: input.groupId } } });
-    if (!group || !enrollment) return reply.code(422).send({ error: 'INVALID_ENROLLMENT' });
-    const subscription = await prisma.subscription.upsert({ where: { studentId_groupId_month: { studentId: input.studentId, groupId: input.groupId, month: input.month } }, update: { amount: input.amount, discount: input.discount, dueOn: input.dueOn, status: input.status }, create: input });
-    await prisma.auditLog.create({ data: { centerId: user.centerId, userId: user.id, action: 'subscription.record', entity: 'Subscription', entityId: subscription.id, metadata: JSON.stringify({ studentId: input.studentId, groupId: input.groupId, month: input.month, status: input.status }) } });
+    const subscription = await prisma.$transaction(async (tx) => {
+      const enrollment = await tx.enrollment.findFirst({ where: { studentId: input.studentId, groupId: input.groupId, student: { centerId: user.centerId! }, group: branchScope(user) } });
+      if (!enrollment) return null;
+      const subscription = await tx.subscription.upsert({ where: { studentId_groupId_month: { studentId: input.studentId, groupId: input.groupId, month: input.month } }, update: { amount: input.amount, discount: input.discount, dueOn: input.dueOn, status: input.status }, create: input });
+      await tx.auditLog.create({ data: { centerId: user.centerId, userId: user.id, action: 'subscription.record', entity: 'Subscription', entityId: subscription.id, metadata: JSON.stringify({ studentId: input.studentId, groupId: input.groupId, month: input.month, status: input.status }) } });
+      return subscription;
+    });
+    if (!subscription) return reply.code(422).send({ error: 'INVALID_ENROLLMENT' });
     return { subscription };
   });
 
-  // STUDENT CRUD
+  // STUDENT CRUD, with branch ownership and related-group validation.
   app.post('/api/students', async (request, reply) => {
     const user = await requireUser(request, reply); if (!user) return;
     if (!user.centerId || !(await authorize(user.id, 'students.create', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
-    const input = z.object({
-      id: z.coerce.number().int().positive().optional(),
-      name: z.string().trim().min(2).max(160),
-      phone: z.string().trim().max(40).optional(),
-      parent: z.string().trim().max(40).optional(),
-      branchId: z.string().optional(),
-      groupIds: z.array(z.coerce.number().int().positive()).default([]),
-    }).parse(request.body);
-
+    const input = z.object({ id: z.coerce.number().int().positive().optional(), name: z.string().trim().min(2).max(160), phone: z.string().trim().max(40).optional(), parent: z.string().trim().max(40).optional(), branchId: z.string().optional(), groupIds: z.array(z.coerce.number().int().positive()).default([]) }).parse(request.body);
+    const fallback = await prisma.branch.findFirst({ where: { centerId: user.centerId }, select: { id: true } });
+    const assignment = await branchForWrite(user, input.branchId, fallback?.id || null);
+    if (!assignment.ok) return reply.code(422).send({ error: 'INVALID_BRANCH' });
+    const groupIds = [...new Set(input.groupIds)];
     const studentId = input.id ?? ((await prisma.student.findFirst({ orderBy: { id: 'desc' }, select: { id: true } }))?.id || 1000) + 1;
-    const branch = input.branchId ? await prisma.branch.findFirst({ where: { id: input.branchId, centerId: user.centerId } }) : await prisma.branch.findFirst({ where: { centerId: user.centerId } });
-
     const student = await prisma.$transaction(async (tx) => {
-      const created = await tx.student.create({
-        data: {
-          id: studentId,
-          centerId: user.centerId!,
-          branchId: branch?.id ?? null,
-          name: input.name,
-          phone: input.phone || null,
-          parent: input.parent || null,
-        },
-      });
-      for (const groupId of input.groupIds) {
-        const group = await tx.group.findFirst({ where: { id: groupId, centerId: user.centerId! } });
-        if (group) {
-          await tx.enrollment.create({ data: { studentId, groupId } });
-          const currentMonth = new Date().toISOString().slice(0, 7);
-          await tx.subscription.upsert({
-            where: { studentId_groupId_month: { studentId, groupId, month: currentMonth } },
-            update: {},
-            create: { studentId, groupId, month: currentMonth, amount: group.price, discount: 0, dueOn: `${currentMonth}-10`, status: 'pending' },
-          });
-        }
+      if (!(await branchForWrite(user, assignment.id, null, tx)).ok) return null;
+      const groups = await tx.group.findMany({ where: { id: { in: groupIds }, ...branchScope(user) }, select: { id: true, price: true } });
+      if (groups.length !== groupIds.length) return null;
+      const created = await tx.student.create({ data: { id: studentId, centerId: user.centerId!, branchId: assignment.id, name: input.name, phone: input.phone || null, parent: input.parent || null } });
+      const month = new Date().toISOString().slice(0, 7);
+      for (const group of groups) {
+        await tx.enrollment.create({ data: { studentId, groupId: group.id } });
+        await tx.subscription.create({ data: { studentId, groupId: group.id, month, amount: group.price, discount: 0, dueOn: `${month}-10`, status: 'pending' } });
       }
+      await tx.auditLog.create({ data: { centerId: user.centerId, userId: user.id, action: 'students.create', entity: 'Student', entityId: String(studentId), metadata: JSON.stringify({ branchId: assignment.id, groupIds }) } });
       return created;
     });
-
-    await prisma.auditLog.create({
-      data: { centerId: user.centerId, userId: user.id, action: 'students.create', entity: 'Student', entityId: String(student.id), metadata: JSON.stringify({ name: student.name, groupIds: input.groupIds }) },
-    });
+    if (!student) return reply.code(422).send({ error: 'INVALID_RESOURCE_ASSIGNMENT' });
     return { student };
   });
 
@@ -421,50 +405,33 @@ export function buildApp() {
     const user = await requireUser(request, reply); if (!user) return;
     if (!user.centerId || !(await authorize(user.id, 'students.update', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
     const params = z.object({ id: z.coerce.number().int().positive() }).parse(request.params);
-    const input = z.object({
-      name: z.string().trim().min(2).max(160).optional(),
-      phone: z.string().trim().max(40).optional(),
-      parent: z.string().trim().max(40).optional(),
-      branchId: z.string().optional(),
-      groupIds: z.array(z.coerce.number().int().positive()).optional(),
-    }).parse(request.body);
-
-    const existing = await prisma.student.findFirst({ where: { id: params.id, centerId: user.centerId } });
+    const input = z.object({ name: z.string().trim().min(2).max(160).optional(), phone: z.string().trim().max(40).optional(), parent: z.string().trim().max(40).optional(), branchId: z.string().optional(), groupIds: z.array(z.coerce.number().int().positive()).optional() }).parse(request.body);
+    const existing = await prisma.student.findFirst({ where: { id: params.id, ...branchScope(user) } });
     if (!existing) return reply.code(404).send({ error: 'STUDENT_NOT_FOUND' });
-
-    const updated = await prisma.$transaction(async (tx) => {
-      const student = await tx.student.update({
-        where: { id: params.id },
-        data: {
-          name: input.name ?? existing.name,
-          phone: input.phone !== undefined ? input.phone || null : existing.phone,
-          parent: input.parent !== undefined ? input.parent || null : existing.parent,
-          branchId: input.branchId !== undefined ? input.branchId || null : existing.branchId,
-        },
-      });
-      if (input.groupIds) {
-        await tx.enrollment.deleteMany({ where: { studentId: params.id } });
-        for (const groupId of input.groupIds) {
-          const group = await tx.group.findFirst({ where: { id: groupId, centerId: user.centerId! } });
-          if (group) {
-            await tx.enrollment.create({ data: { studentId: params.id, groupId } });
-          }
-        }
+    const assignment = await branchForWrite(user, input.branchId, existing.branchId);
+    if (!assignment.ok) return reply.code(422).send({ error: 'INVALID_BRANCH' });
+    const groupIds = input.groupIds ? [...new Set(input.groupIds)] : undefined;
+    const student = await prisma.$transaction(async (tx) => {
+      if (!(await branchForWrite(user, assignment.id, null, tx)).ok) return null;
+      if (groupIds && await tx.group.count({ where: { id: { in: groupIds }, ...branchScope(user) } }) !== groupIds.length) return null;
+      const updated = await tx.student.update({ where: { id: params.id, ...branchScope(user) }, data: { name: input.name ?? existing.name, phone: input.phone !== undefined ? input.phone || null : existing.phone, parent: input.parent !== undefined ? input.parent || null : existing.parent, branchId: assignment.id } });
+      if (groupIds) {
+        // A branch admin may replace only their branch's enrollments, not sibling links.
+        await tx.enrollment.deleteMany({ where: { studentId: params.id, group: branchScope(user) } });
+        for (const groupId of groupIds) await tx.enrollment.upsert({ where: { studentId_groupId: { studentId: params.id, groupId } }, create: { studentId: params.id, groupId }, update: {} });
       }
-      return student;
+      await tx.auditLog.create({ data: { centerId: user.centerId, userId: user.id, action: 'students.update', entity: 'Student', entityId: String(params.id), metadata: JSON.stringify({ branchId: assignment.id }) } });
+      return updated;
     });
-
-    await prisma.auditLog.create({
-      data: { centerId: user.centerId, userId: user.id, action: 'students.update', entity: 'Student', entityId: String(params.id) },
-    });
-    return { student: updated };
+    if (!student) return reply.code(422).send({ error: 'INVALID_RESOURCE_ASSIGNMENT' });
+    return { student };
   });
 
   app.delete('/api/students/:id', async (request, reply) => {
     const user = await requireUser(request, reply); if (!user) return;
     if (!user.centerId || !(await authorize(user.id, 'students.delete', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
     const params = z.object({ id: z.coerce.number().int().positive() }).parse(request.params);
-    const existing = await prisma.student.findFirst({ where: { id: params.id, centerId: user.centerId } });
+    const existing = await prisma.student.findFirst({ where: { id: params.id, ...branchScope(user) } });
     if (!existing) return reply.code(404).send({ error: 'STUDENT_NOT_FOUND' });
 
     await prisma.$transaction(async (tx) => {
@@ -488,14 +455,14 @@ export function buildApp() {
     const params = z.object({ id: z.coerce.number().int().positive() }).parse(request.params);
     // Keep the generic detail route from bypassing the own-child portal boundary.
     const student = await prisma.student.findFirst({
-      where: { id: params.id, centerId: user.centerId,
+      where: { id: params.id, ...branchScope(user),
         ...(user.role === 'STUDENT' ? { userId: user.id } : {}),
         ...(user.role === 'GUARDIAN' ? { guardianLinks: { some: { guardian: { userId: user.id, centerId: user.centerId } } } } : {}),
       },
       include: {
-        enrollments: { where: { group: { centerId: user.centerId } }, include: { group: { include: { teacher: true, course: true } } } },
-        attendance: { where: { group: { centerId: user.centerId } }, orderBy: { date: 'desc' }, take: 30 },
-        subscriptions: { where: { group: { centerId: user.centerId } }, orderBy: { month: 'desc' }, take: 12 },
+        enrollments: { where: { group: branchScope(user) }, include: { group: { include: { teacher: true, course: true } } } },
+        attendance: { where: { group: branchScope(user) }, orderBy: { date: 'desc' }, take: 30 },
+        subscriptions: { where: { group: branchScope(user) }, orderBy: { month: 'desc' }, take: 12 },
         guardianLinks: { where: { guardian: { centerId: user.centerId } }, include: { guardian: true } },
       },
     });
@@ -507,54 +474,28 @@ export function buildApp() {
   app.post('/api/teachers', async (request, reply) => {
     const user = await requireUser(request, reply); if (!user) return;
     if (!user.centerId || !(await authorize(user.id, 'teachers.create', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
-    const input = z.object({
-      id: z.coerce.number().int().positive().optional(),
-      name: z.string().trim().min(2).max(160),
-      subject: z.string().trim().min(2).max(120),
-      phone: z.string().trim().max(40).optional(),
-      branchId: z.string().optional(),
-      email: z.string().email().optional(),
-      password: z.string().min(8).optional(),
-    }).parse(request.body);
-
+    const input = z.object({ id: z.coerce.number().int().positive().optional(), name: z.string().trim().min(2).max(160), subject: z.string().trim().min(2).max(120), phone: z.string().trim().max(40).optional(), branchId: z.string().optional(), email: z.string().email().optional(), password: z.string().min(8).optional() }).parse(request.body);
+    const fallback = await prisma.branch.findFirst({ where: { centerId: user.centerId }, select: { id: true } });
+    const assignment = await branchForWrite(user, input.branchId, fallback?.id || null);
+    if (!assignment.ok) return reply.code(422).send({ error: 'INVALID_BRANCH' });
     const teacherId = input.id ?? ((await prisma.teacher.findFirst({ orderBy: { id: 'desc' }, select: { id: true } }))?.id || 100) + 1;
-    const branch = input.branchId ? await prisma.branch.findFirst({ where: { id: input.branchId, centerId: user.centerId } }) : await prisma.branch.findFirst({ where: { centerId: user.centerId } });
-
-    let userId: string | null = null;
-    if (input.email && input.password) {
-      const email = input.email.toLowerCase();
-      const existingUser = await prisma.user.findUnique({ where: { email } });
-      if (existingUser) return reply.code(422).send({ error: 'EMAIL_ALREADY_EXISTS' });
-      const passwordHash = await bcrypt.hash(input.password, 12);
-      const createdUser = await prisma.user.create({
-        data: {
-          email,
-          passwordHash,
-          name: input.name,
-          role: 'TEACHER',
-          centerId: user.centerId,
-          branchId: branch?.id ?? null,
-        },
-      });
-      await prisma.centerMembership.create({ data: { userId: createdUser.id, centerId: user.centerId, role: 'TEACHER' } });
-      userId = createdUser.id;
-    }
-
-    const teacher = await prisma.teacher.create({
-      data: {
-        id: teacherId,
-        centerId: user.centerId,
-        branchId: branch?.id ?? null,
-        userId,
-        name: input.name,
-        subject: input.subject,
-        phone: input.phone || null,
-      },
+    if (await prisma.teacher.findUnique({ where: { id: teacherId }, select: { id: true } })) return reply.code(409).send({ error: 'ID_NOT_AVAILABLE' });
+    const email = input.email?.toLowerCase();
+    if (email && await prisma.user.findUnique({ where: { email }, select: { id: true } })) return reply.code(422).send({ error: 'EMAIL_ALREADY_EXISTS' });
+    if (!!input.email !== !!input.password) return reply.code(422).send({ error: 'LOGIN_FIELDS_REQUIRED_TOGETHER' });
+    const passwordHash = input.password ? await bcrypt.hash(input.password, 12) : null;
+    const teacher = await prisma.$transaction(async (tx) => {
+      if (!(await branchForWrite(user, assignment.id, null, tx)).ok) return null;
+      let userId: string | null = null;
+      if (email && passwordHash) {
+        const account = await tx.user.create({ data: { email, passwordHash, name: input.name, role: 'TEACHER', centerId: user.centerId, branchId: assignment.id, centerMemberships: { create: { centerId: user.centerId!, role: 'TEACHER' } } } });
+        userId = account.id;
+      }
+      const teacher = await tx.teacher.create({ data: { id: teacherId, centerId: user.centerId!, branchId: assignment.id, userId, name: input.name, subject: input.subject, phone: input.phone || null } });
+      await tx.auditLog.create({ data: { centerId: user.centerId, userId: user.id, action: 'teachers.create', entity: 'Teacher', entityId: String(teacher.id), metadata: JSON.stringify({ branchId: assignment.id }) } });
+      return teacher;
     });
-
-    await prisma.auditLog.create({
-      data: { centerId: user.centerId, userId: user.id, action: 'teachers.create', entity: 'Teacher', entityId: String(teacher.id) },
-    });
+    if (!teacher) return reply.code(422).send({ error: 'INVALID_BRANCH' });
     return { teacher };
   });
 
@@ -562,29 +503,19 @@ export function buildApp() {
     const user = await requireUser(request, reply); if (!user) return;
     if (!user.centerId || !(await authorize(user.id, 'teachers.update', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
     const params = z.object({ id: z.coerce.number().int().positive() }).parse(request.params);
-    const input = z.object({
-      name: z.string().trim().min(2).max(160).optional(),
-      subject: z.string().trim().min(2).max(120).optional(),
-      phone: z.string().trim().max(40).optional(),
-      branchId: z.string().optional(),
-    }).parse(request.body);
-
-    const existing = await prisma.teacher.findFirst({ where: { id: params.id, centerId: user.centerId } });
+    const input = z.object({ name: z.string().trim().min(2).max(160).optional(), subject: z.string().trim().min(2).max(120).optional(), phone: z.string().trim().max(40).optional(), branchId: z.string().optional() }).parse(request.body);
+    const existing = await prisma.teacher.findFirst({ where: { id: params.id, ...branchScope(user) } });
     if (!existing) return reply.code(404).send({ error: 'TEACHER_NOT_FOUND' });
-
-    const teacher = await prisma.teacher.update({
-      where: { id: params.id },
-      data: {
-        name: input.name ?? existing.name,
-        subject: input.subject ?? existing.subject,
-        phone: input.phone !== undefined ? input.phone || null : existing.phone,
-        branchId: input.branchId !== undefined ? input.branchId || null : existing.branchId,
-      },
+    const assignment = await branchForWrite(user, input.branchId, existing.branchId);
+    if (!assignment.ok) return reply.code(422).send({ error: 'INVALID_BRANCH' });
+    const teacher = await prisma.$transaction(async (tx) => {
+      if (!(await branchForWrite(user, assignment.id, null, tx)).ok) return null;
+      const teacher = await tx.teacher.update({ where: { id: params.id, ...branchScope(user) }, data: { name: input.name ?? existing.name, subject: input.subject ?? existing.subject, phone: input.phone !== undefined ? input.phone || null : existing.phone, branchId: assignment.id } });
+      if (existing.userId && input.branchId !== undefined) await tx.user.updateMany({ where: { id: existing.userId, centerId: user.centerId, role: 'TEACHER' }, data: { branchId: assignment.id } });
+      await tx.auditLog.create({ data: { centerId: user.centerId, userId: user.id, action: 'teachers.update', entity: 'Teacher', entityId: String(params.id), metadata: JSON.stringify({ branchId: assignment.id }) } });
+      return teacher;
     });
-
-    await prisma.auditLog.create({
-      data: { centerId: user.centerId, userId: user.id, action: 'teachers.update', entity: 'Teacher', entityId: String(params.id) },
-    });
+    if (!teacher) return reply.code(422).send({ error: 'INVALID_BRANCH' });
     return { teacher };
   });
 
@@ -593,11 +524,11 @@ export function buildApp() {
     if (!user.centerId || !(await authorize(user.id, 'teachers.delete', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
     const params = z.object({ id: z.coerce.number().int().positive() }).parse(request.params);
     const outcome = await prisma.$transaction(async (tx) => {
-      const teacher = await tx.teacher.findFirst({ where: { id: params.id, centerId: user.centerId! }, select: { id: true } });
+      const teacher = await tx.teacher.findFirst({ where: { id: params.id, ...branchScope(user) }, select: { id: true } });
       if (!teacher) return 'missing';
       const groupCount = await tx.group.count({ where: { teacherId: teacher.id } });
       if (groupCount > 0) return 'linked';
-      const deleted = await tx.teacher.deleteMany({ where: { id: teacher.id, centerId: user.centerId! } });
+      const deleted = await tx.teacher.deleteMany({ where: { id: teacher.id, ...branchScope(user) } });
       if (!deleted.count) return 'missing';
       await tx.auditLog.create({ data: { centerId: user.centerId, userId: user.id, action: 'teachers.delete', entity: 'Teacher', entityId: String(teacher.id) } });
       return 'deleted';
@@ -611,38 +542,20 @@ export function buildApp() {
   app.post('/api/groups', async (request, reply) => {
     const user = await requireUser(request, reply); if (!user) return;
     if (!user.centerId || !(await authorize(user.id, 'groups.create', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
-    const input = z.object({
-      id: z.coerce.number().int().positive().optional(),
-      teacherId: z.coerce.number().int().positive(),
-      grade: z.string().trim().min(2).max(120),
-      days: z.union([z.array(z.string()), z.string()]).transform((v) => Array.isArray(v) ? v.join(', ') : v),
-      time: z.string().trim().min(2).max(50),
-      price: z.coerce.number().int().nonnegative(),
-      courseId: z.string().optional().nullable(),
-      branchId: z.string().optional().nullable(),
-    }).parse(request.body);
-
-    const teacher = await prisma.teacher.findFirst({ where: { id: input.teacherId, centerId: user.centerId } });
+    const input = z.object({ id: z.coerce.number().int().positive().optional(), teacherId: z.coerce.number().int().positive(), grade: z.string().trim().min(2).max(120), days: z.union([z.array(z.string()), z.string()]).transform((v) => Array.isArray(v) ? v.join(', ') : v), time: z.string().trim().min(2).max(50), price: z.coerce.number().int().nonnegative(), courseId: z.string().optional().nullable(), branchId: z.string().optional().nullable() }).parse(request.body);
+    const teacher = await prisma.teacher.findFirst({ where: { id: input.teacherId, ...branchScope(user) } });
     if (!teacher) return reply.code(422).send({ error: 'INVALID_TEACHER' });
-
+    const assignment = await branchForWrite(user, input.branchId, teacher.branchId);
+    if (!assignment.ok) return reply.code(422).send({ error: 'INVALID_BRANCH' });
+    if (input.courseId && !(await prisma.course.findFirst({ where: { id: input.courseId, centerId: user.centerId }, select: { id: true } }))) return reply.code(422).send({ error: 'INVALID_COURSE' });
     const groupId = input.id ?? ((await prisma.group.findFirst({ orderBy: { id: 'desc' }, select: { id: true } }))?.id || 100) + 1;
-    const group = await prisma.group.create({
-      data: {
-        id: groupId,
-        centerId: user.centerId,
-        branchId: input.branchId || teacher.branchId || null,
-        teacherId: input.teacherId,
-        grade: input.grade,
-        days: input.days,
-        time: input.time,
-        price: input.price,
-        courseId: input.courseId || null,
-      },
+    const group = await prisma.$transaction(async (tx) => {
+      if (!(await branchForWrite(user, assignment.id, null, tx)).ok || !(await tx.teacher.findFirst({ where: { id: teacher.id, ...branchScope(user) } })) || (input.courseId && !(await tx.course.findFirst({ where: { id: input.courseId, centerId: user.centerId! } })))) return null;
+      const group = await tx.group.create({ data: { id: groupId, centerId: user.centerId!, branchId: assignment.id, teacherId: teacher.id, grade: input.grade, days: input.days, time: input.time, price: input.price, courseId: input.courseId || null } });
+      await tx.auditLog.create({ data: { centerId: user.centerId, userId: user.id, action: 'groups.create', entity: 'Group', entityId: String(group.id), metadata: JSON.stringify({ branchId: assignment.id }) } });
+      return group;
     });
-
-    await prisma.auditLog.create({
-      data: { centerId: user.centerId, userId: user.id, action: 'groups.create', entity: 'Group', entityId: String(group.id) },
-    });
+    if (!group) return reply.code(422).send({ error: 'INVALID_RESOURCE_ASSIGNMENT' });
     return { group };
   });
 
@@ -650,33 +563,21 @@ export function buildApp() {
     const user = await requireUser(request, reply); if (!user) return;
     if (!user.centerId || !(await authorize(user.id, 'groups.update', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
     const params = z.object({ id: z.coerce.number().int().positive() }).parse(request.params);
-    const input = z.object({
-      teacherId: z.coerce.number().int().positive().optional(),
-      grade: z.string().trim().min(2).max(120).optional(),
-      days: z.union([z.array(z.string()), z.string()]).transform((v) => Array.isArray(v) ? v.join(', ') : v).optional(),
-      time: z.string().trim().min(2).max(50).optional(),
-      price: z.coerce.number().int().nonnegative().optional(),
-      courseId: z.string().optional().nullable(),
-    }).parse(request.body);
-
-    const existing = await prisma.group.findFirst({ where: { id: params.id, centerId: user.centerId } });
+    const input = z.object({ teacherId: z.coerce.number().int().positive().optional(), grade: z.string().trim().min(2).max(120).optional(), days: z.union([z.array(z.string()), z.string()]).transform((v) => Array.isArray(v) ? v.join(', ') : v).optional(), time: z.string().trim().min(2).max(50).optional(), price: z.coerce.number().int().nonnegative().optional(), courseId: z.string().optional().nullable(), branchId: z.string().optional().nullable() }).parse(request.body);
+    const existing = await prisma.group.findFirst({ where: { id: params.id, ...branchScope(user) } });
     if (!existing) return reply.code(404).send({ error: 'GROUP_NOT_FOUND' });
-
-    const group = await prisma.group.update({
-      where: { id: params.id },
-      data: {
-        teacherId: input.teacherId ?? existing.teacherId,
-        grade: input.grade ?? existing.grade,
-        days: input.days ?? existing.days,
-        time: input.time ?? existing.time,
-        price: input.price ?? existing.price,
-        courseId: input.courseId !== undefined ? input.courseId : existing.courseId,
-      },
+    const assignment = await branchForWrite(user, input.branchId, existing.branchId);
+    if (!assignment.ok) return reply.code(422).send({ error: 'INVALID_BRANCH' });
+    if (input.teacherId !== undefined && !(await prisma.teacher.findFirst({ where: { id: input.teacherId, ...branchScope(user) }, select: { id: true } }))) return reply.code(422).send({ error: 'INVALID_TEACHER' });
+    if (input.courseId && !(await prisma.course.findFirst({ where: { id: input.courseId, centerId: user.centerId }, select: { id: true } }))) return reply.code(422).send({ error: 'INVALID_COURSE' });
+    const group = await prisma.$transaction(async (tx) => {
+      const courseId = input.courseId !== undefined ? input.courseId : existing.courseId;
+      if (!(await branchForWrite(user, assignment.id, null, tx)).ok || !(await tx.teacher.findFirst({ where: { id: input.teacherId ?? existing.teacherId, ...branchScope(user) } })) || (courseId && !(await tx.course.findFirst({ where: { id: courseId, centerId: user.centerId! } })))) return null;
+      const group = await tx.group.update({ where: { id: params.id, ...branchScope(user) }, data: { teacherId: input.teacherId ?? existing.teacherId, grade: input.grade ?? existing.grade, days: input.days ?? existing.days, time: input.time ?? existing.time, price: input.price ?? existing.price, courseId: input.courseId !== undefined ? input.courseId || null : existing.courseId, branchId: assignment.id } });
+      await tx.auditLog.create({ data: { centerId: user.centerId, userId: user.id, action: 'groups.update', entity: 'Group', entityId: String(group.id), metadata: JSON.stringify({ branchId: assignment.id }) } });
+      return group;
     });
-
-    await prisma.auditLog.create({
-      data: { centerId: user.centerId, userId: user.id, action: 'groups.update', entity: 'Group', entityId: String(params.id) },
-    });
+    if (!group) return reply.code(422).send({ error: 'INVALID_RESOURCE_ASSIGNMENT' });
     return { group };
   });
 
@@ -684,7 +585,7 @@ export function buildApp() {
     const user = await requireUser(request, reply); if (!user) return;
     if (!user.centerId || !(await authorize(user.id, 'groups.delete', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
     const params = z.object({ id: z.coerce.number().int().positive() }).parse(request.params);
-    const existing = await prisma.group.findFirst({ where: { id: params.id, centerId: user.centerId } });
+    const existing = await prisma.group.findFirst({ where: { id: params.id, ...branchScope(user) } });
     if (!existing) return reply.code(404).send({ error: 'GROUP_NOT_FOUND' });
 
     await prisma.$transaction(async (tx) => {
@@ -694,7 +595,7 @@ export function buildApp() {
       await tx.payment.deleteMany({ where: { groupId: params.id } });
       await tx.lessonSession.deleteMany({ where: { groupId: params.id } });
       await tx.schedule.deleteMany({ where: { groupId: params.id } });
-      await tx.group.delete({ where: { id: params.id } });
+      await tx.group.delete({ where: { id: params.id, ...branchScope(user) } });
     });
 
     await prisma.auditLog.create({
@@ -706,8 +607,8 @@ export function buildApp() {
   // BRANCHES, CLASSROOMS, COURSES
   app.get('/api/center/branches', async (request, reply) => {
     const user = await requireUser(request, reply); if (!user) return;
-    if (!user.centerId) return reply.code(403).send({ error: 'FORBIDDEN' });
-    const branches = await prisma.branch.findMany({ where: { centerId: user.centerId }, orderBy: { name: 'asc' } });
+    if (!user.centerId || (!(await authorize(user.id, 'groups.view', { centerId: user.centerId })) && !(await authorize(user.id, 'settings.view', { centerId: user.centerId })))) return reply.code(403).send({ error: 'FORBIDDEN' });
+    const branches = await prisma.branch.findMany({ where: { centerId: user.centerId, ...(user.role === 'BRANCH_ADMIN' ? { id: user.branchId! } : {}) }, orderBy: { name: 'asc' } });
     return { branches };
   });
 
@@ -715,9 +616,14 @@ export function buildApp() {
     const user = await requireUser(request, reply); if (!user) return;
     if (!user.centerId || !(await authorize(user.id, 'settings.manage', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
     const input = z.object({ name: z.string().trim().min(2).max(100), capacity: z.coerce.number().int().positive(), branchId: z.string().optional() }).parse(request.body);
-    const classroom = await prisma.classroom.create({
-      data: { centerId: user.centerId, name: input.name, capacity: input.capacity, branchId: input.branchId || null },
+    const classroom = await prisma.$transaction(async (tx) => {
+      const assignment = await branchForWrite(user, input.branchId, null, tx);
+      if (!assignment.ok) return null;
+      const classroom = await tx.classroom.create({ data: { centerId: user.centerId!, name: input.name, capacity: input.capacity, branchId: assignment.id } });
+      await tx.auditLog.create({ data: { centerId: user.centerId, userId: user.id, action: 'classrooms.create', entity: 'Classroom', entityId: classroom.id, metadata: JSON.stringify({ branchId: assignment.id }) } });
+      return classroom;
     });
+    if (!classroom) return reply.code(422).send({ error: 'INVALID_BRANCH' });
     return { classroom };
   });
 
@@ -746,7 +652,7 @@ export function buildApp() {
     }).parse(request.body);
 
     const result = await prisma.$transaction(async (tx) => {
-      const enrollment = await tx.enrollment.findFirst({ where: { studentId: input.studentId, groupId: input.groupId, student: { centerId: user.centerId! }, group: { centerId: user.centerId! } }, include: { group: { select: { id: true, price: true } } } });
+      const enrollment = await tx.enrollment.findFirst({ where: { studentId: input.studentId, groupId: input.groupId, student: { centerId: user.centerId! }, group: branchScope(user) }, include: { group: { select: { id: true, price: true } } } });
       if (!enrollment) return null;
       const group = enrollment.group;
       const ref = input.reference || `REC-${Date.now().toString().slice(-6)}-${input.studentId}`;
@@ -783,7 +689,7 @@ export function buildApp() {
       ...(user.role === 'GUARDIAN' ? { guardianLinks: { some: { guardian: { userId: user.id, centerId: user.centerId } } } } : {}),
     };
     const payments = await prisma.payment.findMany({
-      where: { student: studentScope, group: { centerId: user.centerId }, ...(query.month ? { month: query.month } : {}) },
+      where: { student: studentScope, group: branchScope(user), ...(query.month ? { month: query.month } : {}) },
       include: { student: { select: { id: true, name: true } }, group: { select: { id: true, grade: true, price: true } } },
       orderBy: { createdAt: 'desc' },
       take: query.limit,
@@ -803,8 +709,8 @@ export function buildApp() {
     if (!studentId || isNaN(studentId)) return reply.code(422).send({ error: 'INVALID_BARCODE', message: 'رمز أو رقم غير صالح' });
 
     const student = await prisma.student.findFirst({
-      where: { id: studentId, centerId: user.centerId },
-      include: { enrollments: { include: { group: { include: { teacher: true, course: true } } } } },
+      where: { id: studentId, centerId: user.centerId, ...(user.role === 'BRANCH_ADMIN' ? { OR: [{ branchId: user.branchId }, { enrollments: { some: { group: branchScope(user) } } }] } : {}) },
+      include: { enrollments: { where: { group: branchScope(user) }, include: { group: { include: { teacher: true, course: true } } } } },
     });
     if (!student) return reply.code(404).send({ error: 'STUDENT_NOT_FOUND', message: 'الطالب غير مسجل في السنتر' });
 
@@ -890,7 +796,7 @@ export function buildApp() {
     // The mutation and audit either both commit or both roll back.
     const session = await prisma.$transaction(async (tx) => {
       const updated = await tx.lessonSession.updateMany({
-        where: { id: params.data.id, group: { centerId: user.centerId! } },
+        where: { id: params.data.id, group: branchScope(user) },
         data: {
           status: input.data.status,
           ...(input.data.topic ? { topic: input.data.topic } : {}),
@@ -916,4 +822,4 @@ if (process.env.NODE_ENV !== 'test') {
   assertProductionConfig();
   const port = Number(process.env.PORT ?? 3000);
   buildApp().listen({ port, host: process.env.HOST ?? '127.0.0.1' }).catch(async (error) => { console.error(error); await prisma.$disconnect(); process.exit(1); });
-                                            }
+      }
