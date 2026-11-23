@@ -32,12 +32,22 @@ function assertProductionConfig(): void {
 }
 
 export function buildApp() {
-  const app = Fastify({ logger: process.env.NODE_ENV === 'test' ? false : true, bodyLimit: 1024 * 1024 });
+  const app = Fastify({ logger: process.env.NODE_ENV === 'test' ? false : { serializers: { req(request) { return { method: request.method, url: request.url?.split('?')[0], remoteAddress: request.ip }; } } }, bodyLimit: 1024 * 1024 });
   app.register(cookie);
   app.register(multipart, { limits: { fileSize: 10 * 1024 * 1024, files: 1 } });
   app.register(helmet, { contentSecurityPolicy: false });
   app.register(rateLimit, { max: 100, timeWindow: '1 minute' });
   registerBranchScopeGuard(app);
+  app.addHook('onRequest', async (request, reply) => {
+    if (request.url.startsWith('/api/')) reply.header('Cache-Control', 'no-store');
+  });
+  app.setErrorHandler((error, request, reply) => {
+    if (error instanceof z.ZodError) return reply.code(422).send({ error: 'INVALID_INPUT' });
+    const code = error && typeof error === 'object' && 'statusCode' in error ? error.statusCode : undefined;
+    const status = typeof code === 'number' && code >= 400 && code < 500 ? code : 500;
+    if (status === 500) request.log.error({ requestId: request.id }, 'Request failed');
+    return reply.code(status).send({ error: status === 500 ? 'INTERNAL_SERVER_ERROR' : 'INVALID_REQUEST' });
+  });
   app.addHook('onResponse', async (request, reply) => {
     requestMetrics.total += 1;
     requestMetrics.byStatus.set(reply.statusCode, (requestMetrics.byStatus.get(reply.statusCode) || 0) + 1);
@@ -115,8 +125,11 @@ export function buildApp() {
 
   app.post('/api/auth/mfa/setup', async (request, reply) => {
     const user = await requireUser(request, reply); if (!user) return;
+    // An authenticated session alone must never replace an enabled authenticator.
+    // Conditional update also protects a setup request racing with activation.
     const secret = generateMfaSecret();
-    await prisma.user.update({ where: { id: user.id }, data: { mfaSecret: secret, mfaEnabled: false } });
+    const changed = await prisma.user.updateMany({ where: { id: user.id, mfaEnabled: false }, data: { mfaSecret: secret } });
+    if (!changed.count) return reply.code(409).send({ error: 'MFA_ALREADY_ENABLED' });
     const label = encodeURIComponent(`${user.centerId || 'platform'}:${user.email}`);
     const otpauthUrl = `otpauth://totp/${label}?secret=${secret}&issuer=Educational%20Center`;
     const qrDataUrl = await QRCode.toDataURL(otpauthUrl, { errorCorrectionLevel: 'M', margin: 2, width: 240 });
@@ -858,4 +871,4 @@ if (process.env.NODE_ENV !== 'test') {
     await prisma.$disconnect().catch(() => undefined);
     process.exit(1);
   });
-  }
+          }
