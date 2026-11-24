@@ -9,7 +9,7 @@ This document separates implemented controls from deployment-dependent work. The
 - [x] Manager UI for MFA setup, verification, and disable flow
 - [x] Authenticated password rotation with session revocation
 - [x] Role and permission checks on protected API routes
-- [ ] Complete API-wide center, branch and role resource-scope audit. Some routes are scoped, but this is not yet a verified platform-wide boundary.
+- [ ] Complete API-wide center, branch and role resource-scope audit. Route inventory, unauthenticated access and cross-center ID access are now release-gated by `tests/routeScopeAudit.test.ts`. Still open: per-role (not only per-center) matrix for every route, Receptionists are now branch-bound like branch admins (`isBranchBound` in `src/resourceScopes.ts`); a receptionist account with no branch is refused. Role-by-route denial matrix: `tests/roleRouteMatrix.test.ts` (tested roles: receptionist, accountant, teacher, student, guardian). Open: accountant export breadth (finance.export returns student contacts and attendance) and the branch list visible to every role. This is not a full API-wide isolation certification.
 - [x] Helmet security headers and rate limiting
 - [x] Input schemas for authentication, attendance, subscriptions, and legacy import
 - [x] Upload size limit, XLSX extension allowlist, and ZIP signature check
