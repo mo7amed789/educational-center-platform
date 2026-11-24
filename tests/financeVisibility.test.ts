@@ -9,14 +9,15 @@ describe('finance permission boundaries on non-finance workflows', () => {
   let center: string; const cookies: Record<string, string> = {}, users: Record<string, string> = {};
   beforeAll(async () => {
     center = (await prisma.center.create({ data: { slug: 'finance-visibility', name: 'Finance visibility fixtures' } })).id;
+    const branch = (await prisma.branch.create({ data: { centerId: center, name: 'Fixture branch' } })).id;
     for (const [key, role] of [['owner', 'CENTER_OWNER'], ['reception', 'RECEPTIONIST'], ['teacher', 'TEACHER'], ['student', 'STUDENT'], ['parent', 'GUARDIAN']] as const) {
-      const user = await prisma.user.create({ data: { centerId: center, name: key, email: `${key}@finance-visibility.test`, role, passwordHash: 'unusable-fixture', centerMemberships: { create: { centerId: center, role } } } });
+      const user = await prisma.user.create({ data: { centerId: center, branchId: role === 'RECEPTIONIST' ? branch : null, name: key, email: `${key}@finance-visibility.test`, role, passwordHash: 'unusable-fixture', centerMemberships: { create: { centerId: center, role } } } });
       users[key] = user.id; const token = `finance-visibility-${key}`;
       await prisma.session.create({ data: { id: createHash('sha256').update(token).digest('hex'), userId: user.id, centerId: center, expiresAt: new Date(Date.now() + 3600000) } }); cookies[key] = `center_session=${token}`;
     }
     await prisma.teacher.create({ data: { id, centerId: center, userId: users.teacher, name: 'Fixture teacher', subject: 'Math' } });
-    await prisma.group.create({ data: { id, centerId: center, teacherId: id, grade: 'Fixture class', days: 'Sunday', time: '10:00', price: 100 } });
-    await prisma.student.create({ data: { id, centerId: center, userId: users.student, name: 'Fixture pupil' } });
+    await prisma.group.create({ data: { id, centerId: center, branchId: branch, teacherId: id, grade: 'Fixture class', days: 'Sunday', time: '10:00', price: 100 } });
+    await prisma.student.create({ data: { id, centerId: center, branchId: branch, userId: users.student, name: 'Fixture pupil' } });
     await prisma.guardian.create({ data: { centerId: center, userId: users.parent, name: 'Fixture parent', children: { create: { studentId: id, relation: 'parent' } } } });
     await prisma.enrollment.create({ data: { studentId: id, groupId: id } });
     await prisma.subscription.create({ data: { studentId: id, groupId: id, month, amount: 100, discount: 0, dueOn: `${month}-10`, status: 'paid' } });

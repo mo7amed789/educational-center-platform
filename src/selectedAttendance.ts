@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { requireUser } from './auth.js';
 import { authorize } from './authorization.js';
 import { prisma } from './prisma.js';
-import { assignedGroupScope } from './resourceScopes.js';
+import { assignedGroupScope, isBranchBound } from './resourceScopes.js';
 
 // The existing attendance identity is student + group + date, not a timed lesson.
 const id = z.number().int().positive().max(2147483647);
@@ -32,7 +32,7 @@ function pupilScope(user: User): Prisma.StudentWhereInput {
 
 async function selectedGroup(client: Prisma.TransactionClient, user: User, groupId: number) {
   if (!user.centerId) return null;
-  if (user.role === 'BRANCH_ADMIN') {
+  if (isBranchBound(user.role)) {
     if (!user.branchId) return null;
     const [branch, membership] = await Promise.all([
       client.branch.findFirst({ where: { id: user.branchId, centerId: user.centerId }, select: { id: true } }),
@@ -42,7 +42,7 @@ async function selectedGroup(client: Prisma.TransactionClient, user: User, group
   }
   return client.group.findFirst({ where: {
     id: groupId, centerId: user.centerId,
-    ...(user.role === 'BRANCH_ADMIN' ? { branchId: user.branchId } : {}),
+    ...(isBranchBound(user.role) ? { branchId: user.branchId } : {}),
     ...(user.role === 'TEACHER' ? { teacher: { userId: user.id, centerId: user.centerId } } : {}),
     ...(['STUDENT', 'GUARDIAN'].includes(user.role) ? { enrollments: { some: { student: pupilScope(user) } } } : {}),
   }, select: { id: true, grade: true, time: true } });
@@ -135,4 +135,4 @@ export function registerSelectedAttendanceRoutes(app: FastifyInstance) {
       return { success: true, ...result };
     });
   }
-        }
+      }

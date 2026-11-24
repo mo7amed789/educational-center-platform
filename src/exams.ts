@@ -1,3 +1,4 @@
+import { isBranchBound } from './resourceScopes.js';
 import { notifyExamResults } from './notifications.js';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { Prisma, User } from '@prisma/client';
@@ -16,12 +17,12 @@ const resultInput = z.object({ studentId: z.number().int().positive().max(214748
 const pathInput = z.object({ id: z.string().min(1).max(100) });
 
 function groupScope(user: User): Prisma.GroupWhereInput {
-  return { centerId: user.centerId || '', ...(user.role === 'BRANCH_ADMIN' ? { branchId: user.branchId || '__missing__' } : {}), ...(user.role === 'TEACHER' ? { teacher: { userId: user.id, centerId: user.centerId || '' } } : {}) };
+  return { centerId: user.centerId || '', ...(isBranchBound(user.role) ? { branchId: user.branchId || '__missing__' } : {}), ...(user.role === 'TEACHER' ? { teacher: { userId: user.id, centerId: user.centerId || '' } } : {}) };
 }
 async function actor(request: FastifyRequest, reply: FastifyReply, permission: Permission) {
   const user = await requireUser(request, reply); if (!user) return null;
   if (!user.centerId || ['STUDENT', 'GUARDIAN'].includes(user.role) || !(await authorize(user.id, permission, { centerId: user.centerId }))) { await reply.code(403).send({ error: 'FORBIDDEN' }); return null; }
-  if (user.role === 'BRANCH_ADMIN') {
+  if (isBranchBound(user.role)) {
     const [branch, membership] = await Promise.all([
       prisma.branch.findFirst({ where: { id: user.branchId || '', centerId: user.centerId }, select: { id: true } }),
       prisma.branchMembership.findUnique({ where: { userId_branchId: { userId: user.id, branchId: user.branchId || '' } }, select: { active: true } }),
@@ -158,4 +159,4 @@ export function registerExamRoutes(app: FastifyInstance) {
       throw error;
     }
   });
-  }
+}

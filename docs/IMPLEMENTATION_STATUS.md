@@ -24,6 +24,9 @@
 - Fintech Subscriptions & Payments API with payment methods (Cash, Card, InstaPay, Vodafone Cash) and printable electronic receipts.
 - Dedicated role-based portals for Teacher, Student (with Apple Wallet ID pass), and Parent (with live child status).
 - End-to-end integration test suite covering all student lifecycle operations, scanning, payments, and portals.
+- Guardian and student linked-child portals with unified learning reports (`docs/LEARNING_REPORTS.md`), monthly parent report, exams with publish/correction history, teacher-scoped grade entry and learner notifications.
+- TOTP MFA (setup, enable, disable, login challenge); setup is refused while MFA is enabled.
+- Route scope release gate (`tests/routeScopeAudit.test.ts`): every `/api` route must answer 401 without a session, and another center's sessions, exams, students, teachers, groups and kiosk scans stay hidden and unchanged.
 
 ## In progress
 
@@ -31,11 +34,11 @@
 
 ## Not complete yet
 
-- Guardian/teacher/student account activation and linked-child models.
+- Self-service guardian/teacher/student account activation (linked-child models exist).
 - Employee permission management UI.
 - Full attendance corrections, schedules, invoices, refunds, academic module,
   notifications/outbox, backups, and background jobs.
-- PostgreSQL production migration, deployment environments, MFA, E2E testing,
+- PostgreSQL production migration, deployment environments, browser E2E testing,
   durable monitoring/tracing, and provider integrations.
 
 No production-readiness or legal-compliance claim should be made until the

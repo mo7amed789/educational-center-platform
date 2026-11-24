@@ -3,11 +3,14 @@ import type { FastifyInstance } from 'fastify';
 import { currentUser } from './auth.js';
 import { prisma } from './prisma.js';
 
+// Roles that act inside one branch: a missing branch denies access instead of widening it.
+export const isBranchBound = (role: string) => role === 'BRANCH_ADMIN' || role === 'RECEPTIONIST';
+
 type ScopedUser = Pick<User, 'role' | 'centerId' | 'branchId'>;
 
 // A primary branch is an acting scope, not a fallback to center-wide access.
 export function branchScope(user: ScopedUser) {
-  return { centerId: user.centerId || '', ...(user.role === 'BRANCH_ADMIN' ? { branchId: user.branchId || '__missing_branch__' } : {}) };
+  return { centerId: user.centerId || '', ...(isBranchBound(user.role) ? { branchId: user.branchId || '__missing_branch__' } : {}) };
 }
 
 export function assignedGroupScope(user: ScopedUser & Pick<User, 'id'>): Prisma.GroupWhereInput {
@@ -27,8 +30,8 @@ export function teacherScope(user: ScopedUser & Pick<User, 'id'>): Prisma.Teache
 }
 
 export async function branchForWrite(user: ScopedUser, requested: string | null | undefined, fallback: string | null, client: Pick<Prisma.TransactionClient, 'branch'> = prisma) {
-  const id = requested === undefined ? (user.role === 'BRANCH_ADMIN' ? user.branchId : fallback) : requested || null;
-  if (user.role === 'BRANCH_ADMIN' && (!id || id !== user.branchId)) return { ok: false as const };
+  const id = requested === undefined ? (isBranchBound(user.role) ? user.branchId : fallback) : requested || null;
+  if (isBranchBound(user.role) && (!id || id !== user.branchId)) return { ok: false as const };
   if (id && !(await client.branch.findFirst({ where: { id, centerId: user.centerId || '' }, select: { id: true } }))) return { ok: false as const };
   return { ok: true as const, id };
 }
@@ -38,7 +41,7 @@ export function registerBranchScopeGuard(app: FastifyInstance) {
     const path = request.routeOptions.url || request.url.split('?')[0];
     if (!path.startsWith('/api/') || path.startsWith('/api/auth/')) return;
     const user = await currentUser(request);
-    if (!user || user.role !== 'BRANCH_ADMIN') return;
+    if (!user || !isBranchBound(user.role)) return;
     if (!user.centerId || !user.branchId) return reply.code(403).send({ error: 'BRANCH_SCOPE_REQUIRED' });
     const [branch, membership, branchMembership] = await Promise.all([
       prisma.branch.findFirst({ where: { id: user.branchId, centerId: user.centerId }, select: { id: true } }),
