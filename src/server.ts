@@ -657,7 +657,15 @@ export function buildApp() {
   app.get('/api/center/branches', async (request, reply) => {
     const user = await requireUser(request, reply); if (!user) return;
     if (!user.centerId || (!(await authorize(user.id, 'groups.view', { centerId: user.centerId })) && !(await authorize(user.id, 'settings.view', { centerId: user.centerId })))) return reply.code(403).send({ error: 'FORBIDDEN' });
-    const branches = await prisma.branch.findMany({ where: { centerId: user.centerId, ...(isBranchBound(user.role) ? { id: user.branchId! } : {}) }, orderBy: { name: 'asc' } });
+    let linkedBranch: Record<string, unknown> = isBranchBound(user.role) ? { id: user.branchId! } : {};
+    if (user.role === 'STUDENT' || user.role === 'GUARDIAN') {
+      // Students and guardians only see branches linked to the pupil or the pupil's groups.
+      const pupils = await prisma.student.findMany({ where: studentScope(user), select: { branchId: true, enrollments: { select: { group: { select: { branchId: true } } } } } });
+      const ids = new Set<string>();
+      for (const pupil of pupils) { if (pupil.branchId) ids.add(pupil.branchId); for (const row of pupil.enrollments) if (row.group.branchId) ids.add(row.group.branchId); }
+      linkedBranch = { id: { in: [...ids] } };
+    }
+    const branches = await prisma.branch.findMany({ where: { centerId: user.centerId, ...linkedBranch }, orderBy: { name: 'asc' } });
     return { branches };
   });
 
@@ -871,4 +879,4 @@ if (process.env.NODE_ENV !== 'test') {
     await prisma.$disconnect().catch(() => undefined);
     process.exit(1);
   });
-}
+        }
