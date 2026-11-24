@@ -11,7 +11,7 @@ import rateLimit from '@fastify/rate-limit';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { prisma } from './prisma.js';
-import { branchScope, assignedGroupScope, studentScope, teacherScope, branchForWrite, registerBranchScopeGuard } from './resourceScopes.js';
+import { branchScope, assignedGroupScope, studentScope, teacherScope, branchForWrite, registerBranchScopeGuard, isBranchBound } from './resourceScopes.js';
 import { registerMonthlyReportRoutes } from './monthlyReports.js';
 import { registerKioskStudentRoutes } from './kioskStudents.js';
 import { registerSelectedAttendanceRoutes } from './selectedAttendance.js';
@@ -657,7 +657,7 @@ export function buildApp() {
   app.get('/api/center/branches', async (request, reply) => {
     const user = await requireUser(request, reply); if (!user) return;
     if (!user.centerId || (!(await authorize(user.id, 'groups.view', { centerId: user.centerId })) && !(await authorize(user.id, 'settings.view', { centerId: user.centerId })))) return reply.code(403).send({ error: 'FORBIDDEN' });
-    const branches = await prisma.branch.findMany({ where: { centerId: user.centerId, ...(user.role === 'BRANCH_ADMIN' ? { id: user.branchId! } : {}) }, orderBy: { name: 'asc' } });
+    const branches = await prisma.branch.findMany({ where: { centerId: user.centerId, ...(isBranchBound(user.role) ? { id: user.branchId! } : {}) }, orderBy: { name: 'asc' } });
     return { branches };
   });
 
@@ -763,7 +763,7 @@ export function buildApp() {
       const student = await tx.student.findFirst({
         where: { id: studentId, centerId: user.centerId!,
           ...(user.role === 'TEACHER' ? { enrollments: { some: { group: groupScope } } }
-            : user.role === 'BRANCH_ADMIN' ? { OR: [{ branchId: user.branchId }, { enrollments: { some: { group: groupScope } } }] } : {}),
+            : isBranchBound(user.role) ? { OR: [{ branchId: user.branchId }, { enrollments: { some: { group: groupScope } } }] } : {}),
         },
         include: { enrollments: { where: { group: groupScope }, include: { group: { include: { teacher: true, course: true } } }, orderBy: { groupId: 'asc' } } },
       });
@@ -871,4 +871,4 @@ if (process.env.NODE_ENV !== 'test') {
     await prisma.$disconnect().catch(() => undefined);
     process.exit(1);
   });
-          }
+                                                                                                                                                                                       }
