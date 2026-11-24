@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { prisma } from './prisma.js';
 import { requireUser } from './auth.js';
 import { authorize } from './authorization.js';
-import { assignedGroupScope } from './resourceScopes.js';
+import { assignedGroupScope, isBranchBound } from './resourceScopes.js';
 import { readMonthlyLearningReport, readLearningReport, learningGroupInclude, groupLabel } from './learningReports.js';
 
 const monthSchema = z.string().regex(/^(19|20|21)\d{2}-(0[1-9]|1[0-2])$/);
@@ -102,7 +102,7 @@ export function registerMonthlyReportRoutes(app: FastifyInstance) {
     if (!user.centerId || ['STUDENT', 'GUARDIAN'].includes(user.role) || !(await authorize(user.id, 'academic.manage_grades', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
     const query = z.object({ groupId: z.coerce.number().int().positive() }).safeParse(request.query);
     if (!query.success) return reply.code(422).send({ error: 'INVALID_INPUT' });
-    if (user.role === 'BRANCH_ADMIN' && !user.branchId) return reply.code(403).send({ error: 'FORBIDDEN' });
+    if (isBranchBound(user.role) && !user.branchId) return reply.code(403).send({ error: 'FORBIDDEN' });
     const group = await prisma.group.findFirst({ where: { id: query.data.groupId, ...assignedGroupScope(user) }, select: { id: true } });
     if (!group) return reply.code(404).send({ error: 'GROUP_NOT_FOUND' });
     const students = await prisma.student.findMany({ where: { centerId: user.centerId, enrollments: { some: { groupId: group.id } } }, select: { id: true, name: true }, orderBy: { name: 'asc' } });
@@ -114,7 +114,7 @@ export function registerMonthlyReportRoutes(app: FastifyInstance) {
     if (!user.centerId || ['STUDENT', 'GUARDIAN'].includes(user.role) || !(await authorize(user.id, 'academic.manage_grades', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
     const query = z.object({ month: monthSchema, studentId: z.coerce.number().int().positive().optional() }).safeParse(request.query);
     if (!query.success) return reply.code(422).send({ error: 'INVALID_INPUT' });
-    if (user.role === 'BRANCH_ADMIN' && !user.branchId) return reply.code(403).send({ error: 'FORBIDDEN' });
+    if (isBranchBound(user.role) && !user.branchId) return reply.code(403).send({ error: 'FORBIDDEN' });
     const items = await prisma.gradeRecord.findMany({
       where: { examId: null, student: { centerId: user.centerId }, group: assignedGroupScope(user), assessedOn: monthRange(query.data.month), ...(query.data.studentId ? { studentId: query.data.studentId } : {}) },
       include: { student: { select: { id: true, name: true } }, group: { include: learningGroupInclude } },
@@ -129,7 +129,7 @@ export function registerMonthlyReportRoutes(app: FastifyInstance) {
     if (!user.centerId || ['STUDENT', 'GUARDIAN'].includes(user.role) || !(await authorize(user.id, 'academic.manage_grades', { centerId: user.centerId }))) return reply.code(403).send({ error: 'FORBIDDEN' });
     const input = gradeInput.safeParse(request.body);
     if (!input.success) return reply.code(422).send({ error: 'INVALID_INPUT' });
-    if (user.role === 'BRANCH_ADMIN' && !user.branchId) return reply.code(403).send({ error: 'FORBIDDEN' });
+    if (isBranchBound(user.role) && !user.branchId) return reply.code(403).send({ error: 'FORBIDDEN' });
     const result = await prisma.$transaction(async (tx) => {
       const enrollment = await tx.enrollment.findFirst({ where: {
         studentId: input.data.studentId, groupId: input.data.groupId,
@@ -143,4 +143,4 @@ export function registerMonthlyReportRoutes(app: FastifyInstance) {
     if (!result) return reply.code(422).send({ error: 'INVALID_ENROLLMENT' });
     return reply.code(201).send({ grade: { id: result.id, studentId: result.studentId, groupId: result.groupId, title: result.title, assessedOn: result.assessedOn, score: result.score, maxScore: result.maxScore } });
   });
-            }
+}
