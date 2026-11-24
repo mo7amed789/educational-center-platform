@@ -871,4 +871,4 @@ if (process.env.NODE_ENV !== 'test') {
     await prisma.$disconnect().catch(() => undefined);
     process.exit(1);
   });
-                                                                                                                                                                                       }
+}
