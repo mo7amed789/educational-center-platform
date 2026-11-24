@@ -18,7 +18,7 @@ describe('assigned teacher resource boundaries', () => {
     const token = 'assigned-teacher-disposable-session';
     await prisma.session.create({ data: { id: createHash('sha256').update(token).digest('hex'), userId: user.id, centerId: center, expiresAt: new Date(Date.now() + 3600000) } });
     cookie = `center_session=${token}`;
-    const staff = await prisma.user.create({ data: { centerId: center, role: 'RECEPTIONIST', name: 'Scan staff', email: 'scan-staff@teacher-resources.test', passwordHash: 'unusable-fixture', centerMemberships: { create: { centerId: center, role: 'RECEPTIONIST' } } } });
+    const staff = await prisma.user.create({ data: { centerId: center, branchId: ownBranch, role: 'RECEPTIONIST', name: 'Scan staff', email: 'scan-staff@teacher-resources.test', passwordHash: 'unusable-fixture', centerMemberships: { create: { centerId: center, role: 'RECEPTIONIST' } } } });
     const staffToken = 'scan-staff-disposable-session'; await prisma.session.create({ data: { id: createHash('sha256').update(staffToken).digest('hex'), userId: staff.id, centerId: center, expiresAt: new Date(Date.now() + 3600000) } }); staffCookie = 'center_session=' + staffToken;
     for (const id of [own, other, foreign]) {
       const centerId = id === foreign ? foreignCenter : center, branchId = id === own ? ownBranch : id === other ? siblingBranch : null;
