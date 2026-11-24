@@ -55,4 +55,10 @@ describe('role by route denial matrix', () => {
     const res = await app.inject({ method: method as 'GET', url, payload: method === 'GET' ? undefined : {}, headers: { cookie: cookies[role] } });
     expect(res.statusCode).toBe(403);
   });
+  // Owner decision (WhatsApp, Nov 24 2026): the accountant may export everything, not only finance data.
+  it('lets an accountant export the full workbook, by owner decision', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/export/excel', headers: { cookie: cookies.ACCOUNTANT } });
+    expect(res.statusCode).toBe(200);
+    expect(String(res.headers['content-type'])).toContain('spreadsheetml');
+  });
 });
